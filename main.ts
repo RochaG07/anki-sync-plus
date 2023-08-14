@@ -22,13 +22,12 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		this.htmlConverter = new Converter();
 
 		// This creates an icon in the left ribbon.
-		const ribbonIconScanVault = this.addRibbonIcon('dice', 'Scan vault on selected folder', async () => {
-			//await this.scanVault();
-			this.addCurentFile();
+		const ribbonIconScanVault = this.addRibbonIcon('dice', 'Add/Update all notes on selected folder', async () => {
+			this.scanVault();
 		});
 
-		const ribbonIconAddCurrentFile = this.addRibbonIcon('dice', 'Add current note', async () => {
-			this.addCurentFile();
+		const ribbonIconAddCurrentFile = this.addRibbonIcon('dice', 'Add/Update current note', async () => {
+			this.addOrUpdateCurentFile();
 		});
 
 		// Perform additional things with the ribbon
@@ -65,12 +64,21 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		return editor == null ? null : editor?.file
 	}
 
-	addCurentFile(){
+
+
+	async addOrUpdateCurentFile(){
 		let file = this.getCurrentFile();
 
 		if (!file) return;
 
-		this.addNewCard(file);
+		let ankiId = await this.getAnkiCardIdFromFile(file);
+
+		if(ankiId){
+			this.updateExistingCard(ankiId, file);
+		} else {
+			this.addNewCard(file);
+		}
+		
 	}
 
 
@@ -80,8 +88,10 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		return files;
 	}
 
-	getAnkiCardIdFromNote(note: string): number | null{
-		let m = note.match(/anki-id: \d+/g)?.toString();
+	async getAnkiCardIdFromFile(file: TFile): Promise<number | null>{
+		let noteContent = await this.app.vault.cachedRead(file);
+
+		let m = noteContent.match(/anki-id: \d+/g)?.toString();
 
 		if (!m) return null;
 
@@ -111,18 +121,19 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		const files = this.getFilesOnFolder("Target Folder");
 
 		for (let i = 0; i < files.length; i++) {	
-			this.addNewCard(files[i]);
+			let ankiId = await this.getAnkiCardIdFromFile(files[i]);
+
+			if(ankiId){
+				this.updateExistingCard(ankiId, files[i]);
+			} else {
+				this.addNewCard(files[i]);
+			}
 		}
 	}
 
-	async addNewCard(note: TFile){
-		let noteTitle = note.name.substring(0, note.name.length - 3);	
-		let noteContent = await this.app.vault.cachedRead(note);
-
-		// Card already exists
-		let currentAnkiId = this.getAnkiCardIdFromNote(noteContent);
-		if(currentAnkiId) return;
-
+	async addNewCard(file: TFile){
+		let noteTitle = file.name.substring(0, file.name.length - 3);	
+		let noteContent = await this.app.vault.cachedRead(file);
 
 		let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ]+/g)];
 
@@ -132,10 +143,10 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		}
 		
 		let noteContentWithExclusion = noteContent.replace(this.exclusionRegex, "");
-		let ankiId = await this.sendCardToAnki(noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusion), deck);
+		let ankiId = await this.AddCardOnAnki(noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusion), deck);
 
 		// Add id from created card on note
-		await this.app.vault.process(note, (data) => {
+		await this.app.vault.process(file, (data) => {
 			let yamlArr = this.extractYamlFromNote(noteContent)
 			let noteWithoutYaml = data.replace(/---((.|\n)*)---/g, "");
 
@@ -143,18 +154,27 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 			let newData = `---\n${yamlArr.join("\n")}\n---${yamlArr.length == 1 ? "\n":""}${noteWithoutYaml}`
 
-
-
 			return newData
 		})
-
-
-		// TODO Add id from created card on database
-
 	}
 
+	async updateExistingCard(ankiId:number, file: TFile){
+		let noteTitle = file.name.substring(0, file.name.length - 3);	
+		let noteContent = await this.app.vault.cachedRead(file);
 
-	async sendCardToAnki(front: string, back: string, deck: string): Promise<string | null> {
+		let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ]+/g)];
+
+		let deck = "Padrão";
+		if(tags.length > 0){
+			deck = this.getDeckFromTags(tags);
+		}
+
+		let noteContentWithExclusion = noteContent.replace(this.exclusionRegex, "");
+
+		this.UpdateCardOnAnki(ankiId, noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusion), deck);
+	}
+
+	async AddCardOnAnki(front: string, back: string, deck: string): Promise<string | null> {
 		const url = "http://localhost:8765/";
 
 
@@ -185,7 +205,42 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 		return response.result;
 	}
+
+	async UpdateCardOnAnki(id: number, front: string, back: string, deck: string): Promise<string | null> {
+		const url = "http://localhost:8765/";
+
+		const body = JSON.stringify({
+			action: "updateNote",
+			version: 6,
+			params: {
+				"note": {
+					"id": id,
+					"deckName": deck,
+					"modelName": "Básico",
+					"fields": {
+						"Frente": front,
+						"Verso": back
+						}    
+					}
+				}
+		});
+
+		let response = await fetch(url, {
+			method: "post",
+			body
+		}).then((response) => {
+			return response.json();
+		}).catch((error) => {
+			console.log(error);
+			return null;
+		})
+
+		return response.result;
+	}
+
 }
+
+
 
 class SampleSettingTab extends PluginSettingTab {
 	plugin: AnkiObsidianIntegrationPlugin;
