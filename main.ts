@@ -22,12 +22,17 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		this.htmlConverter = new Converter();
 
 		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', async () => {
-			await this.scanVault();
+		const ribbonIconScanVault = this.addRibbonIcon('dice', 'Scan vault on selected folder', async () => {
+			//await this.scanVault();
+			this.addCurentFile();
+		});
+
+		const ribbonIconAddCurrentFile = this.addRibbonIcon('dice', 'Add current note', async () => {
+			this.addCurentFile();
 		});
 
 		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
+		//ribbonIconEl.addClass('my-plugin-ribbon-class');
 
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 		const statusBarItemEl = this.addStatusBarItem();
@@ -52,6 +57,20 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	getCurrentFile(): TFile | null{
+		let editor = this.app.workspace.activeEditor;
+
+		return editor == null ? null : editor?.file
+	}
+
+	addCurentFile(){
+		let file = this.getCurrentFile();
+
+		if (!file) return;
+
+		this.addNewCard(file);
 	}
 
 
@@ -88,22 +107,23 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		return deck;
 	}
 
-
 	async scanVault(){
 		const files = this.getFilesOnFolder("Target Folder");
 
 		for (let i = 0; i < files.length; i++) {	
-			let noteTitle = files[i].name.substring(0, files[i].name.length - 3);	
-			let noteContent = await this.app.vault.cachedRead(files[i])
-			let ankiId = this.getAnkiCardIdFromNote(noteContent);
-
-			if (!ankiId){
-				this.addNewCard(files[i], noteTitle, noteContent);
-			}
+			this.addNewCard(files[i]);
 		}
 	}
 
-	async addNewCard(note: TFile, noteTitle: string, noteContent: string ){
+	async addNewCard(note: TFile){
+		let noteTitle = note.name.substring(0, note.name.length - 3);	
+		let noteContent = await this.app.vault.cachedRead(note);
+
+		// Card already exists
+		let currentAnkiId = this.getAnkiCardIdFromNote(noteContent);
+		if(currentAnkiId) return;
+
+
 		let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ]+/g)];
 
 		let deck = "Padrão";
