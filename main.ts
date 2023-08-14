@@ -27,7 +27,11 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		});
 
 		const ribbonIconAddCurrentFile = this.addRibbonIcon('dice', 'Add/Update current note', async () => {
-			this.addOrUpdateCurentFile();
+			this.addOrUpdateCurentFileCard();
+		});
+
+		const ribbonIconDeleteCurrentFile = this.addRibbonIcon('dice', 'Delete current note', async () => {
+			this.deleteCurentFileCard();
 		});
 
 		// Perform additional things with the ribbon
@@ -58,17 +62,23 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	getCurrentFile(): TFile | null{
-		let editor = this.app.workspace.activeEditor;
+	/// Actions 
+	async scanVault(){
+		const files = this.getFilesOnFolder("Target Folder");
 
-		return editor == null ? null : editor?.file
+		for (let i = 0; i < files.length; i++) {	
+			let ankiId = await this.getAnkiCardIdFromFile(files[i]);
+
+			if(ankiId){
+				this.updateExistingCard(ankiId, files[i]);
+			} else {
+				this.addNewCard(files[i]);
+			}
+		}
 	}
 
-
-
-	async addOrUpdateCurentFile(){
+	async addOrUpdateCurentFileCard(){
 		let file = this.getCurrentFile();
-
 		if (!file) return;
 
 		let ankiId = await this.getAnkiCardIdFromFile(file);
@@ -81,6 +91,23 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		
 	}
 
+	async deleteCurentFileCard(){
+		let file = this.getCurrentFile();
+		if (!file) return;
+
+		let ankiId = await this.getAnkiCardIdFromFile(file);
+
+		if(ankiId){
+			this.deleteExistingCard(ankiId, file);
+		}
+	}
+
+	/// Utils
+	getCurrentFile(): TFile | null{
+		let editor = this.app.workspace.activeEditor;
+
+		return editor == null ? null : editor?.file
+	}
 
 	getFilesOnFolder(folder: string) : TFile[]{
 		const files = this.app.vault.getMarkdownFiles().filter(file => file.parent?.path == folder);
@@ -117,20 +144,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		return deck;
 	}
 
-	async scanVault(){
-		const files = this.getFilesOnFolder("Target Folder");
-
-		for (let i = 0; i < files.length; i++) {	
-			let ankiId = await this.getAnkiCardIdFromFile(files[i]);
-
-			if(ankiId){
-				this.updateExistingCard(ankiId, files[i]);
-			} else {
-				this.addNewCard(files[i]);
-			}
-		}
-	}
-
+	/// ...
 	async addNewCard(file: TFile){
 		let noteTitle = file.name.substring(0, file.name.length - 3);	
 		let noteContent = await this.app.vault.cachedRead(file);
@@ -143,7 +157,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		}
 		
 		let noteContentWithExclusion = noteContent.replace(this.exclusionRegex, "");
-		let ankiId = await this.AddCardOnAnki(noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusion), deck);
+		let ankiId = await this.addCardOnAnki(noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusion), deck);
 
 		// Add id from created card on note
 		await this.app.vault.process(file, (data) => {
@@ -171,10 +185,30 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 		let noteContentWithExclusion = noteContent.replace(this.exclusionRegex, "");
 
-		this.UpdateCardOnAnki(ankiId, noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusion), deck);
+		this.updateCardOnAnki(ankiId, noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusion), deck);
 	}
 
-	async AddCardOnAnki(front: string, back: string, deck: string): Promise<string | null> {
+	async deleteExistingCard(ankiId:number, file: TFile){
+		this.deleteCardOnAnki(ankiId);
+
+		let noteContent = await this.app.vault.cachedRead(file);
+
+		// Remove anki id on note
+		await this.app.vault.process(file, (data) => {
+			let yamlArr = this.extractYamlFromNote(noteContent)
+			let noteWithoutYaml = data.replace(/---((.|\n)*)---/g, "");
+
+			yamlArr = yamlArr.filter(field => !field.contains("anki-id"))
+			console.log(yamlArr);
+
+			let newData = `---\n${yamlArr.join("\n")}\n---${yamlArr.length == 1 ? "\n":""}${noteWithoutYaml}`
+
+			return newData
+		})
+	}
+
+	/// Anki
+	async addCardOnAnki(front: string, back: string, deck: string): Promise<string | null> {
 		const url = "http://localhost:8765/";
 
 
@@ -206,7 +240,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		return response.result;
 	}
 
-	async UpdateCardOnAnki(id: number, front: string, back: string, deck: string): Promise<string | null> {
+	async updateCardOnAnki(id: number, front: string, back: string, deck: string): Promise<string | null> {
 		const url = "http://localhost:8765/";
 
 		const body = JSON.stringify({
@@ -223,6 +257,30 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 						}    
 					}
 				}
+		});
+
+		let response = await fetch(url, {
+			method: "post",
+			body
+		}).then((response) => {
+			return response.json();
+		}).catch((error) => {
+			console.log(error);
+			return null;
+		})
+
+		return response.result;
+	}
+
+	async deleteCardOnAnki(id: number): Promise<string | null> {
+		const url = "http://localhost:8765/";
+
+		const body = JSON.stringify({
+			"action": "deleteNotes",
+			"version": 6,
+			"params": {
+				"notes": [id]
+			}
 		});
 
 		let response = await fetch(url, {
