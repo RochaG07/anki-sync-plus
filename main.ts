@@ -1,3 +1,4 @@
+import { rejects } from 'assert';
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
 import {Converter} from "showdown";
 
@@ -17,9 +18,15 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 	exclusionRegex: RegExp = /# \*\*((.|\n)*)|---((.|\n)*)---/g;
 
+	ignoreTags: string[] = [];
+	excludeTags: string[] = [];
+
 	async onload() {
 		await this.loadSettings();
 		this.htmlConverter = new Converter();
+
+		this.ignoreTags.push("#ignore");
+		this.excludeTags.push("#exclude");
 
 		// This creates an icon in the left ribbon.
 		const ribbonIconScanVault = this.addRibbonIcon('dice', 'Add/Update all notes on selected folder', async () => {
@@ -38,8 +45,8 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		//ribbonIconEl.addClass('my-plugin-ribbon-class');
 
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
+		//const statusBarItemEl = this.addStatusBarItem();
+		//statusBarItemEl.setText('Status Bar Text');
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
@@ -62,7 +69,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	/// Actions 
+	/// Vault actions 
 	async scanVault(){
 		const files = this.getFilesOnFolder("Target Folder");
 
@@ -136,32 +143,62 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		return output;
 	}
 
-	getDeckFromTags(tags: RegExpMatchArray[]): string{
-		let deck = tags[0][0].slice(1);
+	getDeckFromTags(tags: string[]): string{
+		let deck = tags[0].slice(1);
 		let captalizedLetter = deck.charAt(0).toUpperCase();
 		deck = captalizedLetter + deck.slice(1);
 
 		return deck;
 	}
 
-	/// ...
-	async addNewCard(file: TFile){
+	foundExclusionTags(tags: string[]) : boolean {
+		let found = false;
+
+		this.excludeTags.forEach(excludedTag => {
+			if(tags.find(tag => tag === excludedTag) != undefined){
+				found = true;
+			}
+		})
+
+		return found;
+	}
+
+	async getInfoFromFile(file: TFile) : Promise<{ noteTitle: string; noteContent: string; tags: string[]; }>{
 		let noteTitle = file.name.substring(0, file.name.length - 3);	
 		let noteContent = await this.app.vault.cachedRead(file);
 
-		let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ]+/g)];
+		let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ]+/g)].map(tag => tag[0]);
+
+		this.ignoreTags.forEach(ignorableTag => {
+			tags = tags.filter(tag => tag != ignorableTag)
+		})
+
+		return {
+			noteTitle, 
+			noteContent,
+			tags
+		}
+	}
+
+	/// ...
+	async addNewCard(file: TFile){
+		let noteInfo = await this.getInfoFromFile(file);
+
+		if(this.foundExclusionTags(noteInfo.tags)) return;
+		
 
 		let deck = "Padrão";
-		if(tags.length > 0){
-			deck = this.getDeckFromTags(tags);
+		if(noteInfo.tags.length > 0){
+			deck = this.getDeckFromTags(noteInfo.tags);
 		}
-		
-		let noteContentWithExclusion = noteContent.replace(this.exclusionRegex, "");
-		let ankiId = await this.addCardOnAnki(noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusion), deck);
+
+		let noteContentWithExclusionRegex = noteInfo.noteContent.replace(this.exclusionRegex, "");
+
+		let ankiId = await this.addCardOnAnki(noteInfo.noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusionRegex), deck);
 
 		// Add id from created card on note
 		await this.app.vault.process(file, (data) => {
-			let yamlArr = this.extractYamlFromNote(noteContent)
+			let yamlArr = this.extractYamlFromNote(noteInfo.noteContent)
 			let noteWithoutYaml = data.replace(/---((.|\n)*)---/g, "");
 
 			yamlArr.push("anki-id: " + ankiId);
@@ -173,19 +210,18 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	}
 
 	async updateExistingCard(ankiId:number, file: TFile){
-		let noteTitle = file.name.substring(0, file.name.length - 3);	
-		let noteContent = await this.app.vault.cachedRead(file);
+		let noteInfo = await this.getInfoFromFile(file);
 
-		let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ]+/g)];
+		if(this.foundExclusionTags(noteInfo.tags)) return;
 
 		let deck = "Padrão";
-		if(tags.length > 0){
-			deck = this.getDeckFromTags(tags);
+		if(noteInfo.tags.length > 0){
+			deck = this.getDeckFromTags(noteInfo.tags);
 		}
 
-		let noteContentWithExclusion = noteContent.replace(this.exclusionRegex, "");
+		let noteContentWithExclusionRegex = noteInfo.noteContent.replace(this.exclusionRegex, "");
 
-		this.updateCardOnAnki(ankiId, noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusion), deck);
+		this.updateCardOnAnki(ankiId, noteInfo.noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusionRegex), deck);
 	}
 
 	async deleteExistingCard(ankiId:number, file: TFile){
@@ -199,13 +235,13 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			let noteWithoutYaml = data.replace(/---((.|\n)*)---/g, "");
 
 			yamlArr = yamlArr.filter(field => !field.contains("anki-id"))
-			console.log(yamlArr);
 
 			let newData = `---\n${yamlArr.join("\n")}\n---${yamlArr.length == 1 ? "\n":""}${noteWithoutYaml}`
 
 			return newData
 		})
 	}
+
 
 	/// Anki
 	async addCardOnAnki(front: string, back: string, deck: string): Promise<string | null> {
