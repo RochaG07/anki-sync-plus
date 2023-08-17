@@ -1,26 +1,31 @@
-import { rejects } from 'assert';
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, getAllTags } from 'obsidian';
 import {Converter} from "showdown";
 
 // Remember to rename these classes and interfaces!
 
 interface AnkiObsidianIntegrationSettings {
-	mySetting: string;
+	targetFolder: string,
+	regexDisplayText: string,
+	exclusionRegex: RegExp | undefined,
+	ignoreTags: string[],
+	excludeTags: string[]
 }
 
 const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
-	mySetting: 'default'
+	targetFolder: "",
+	regexDisplayText: "",
+	exclusionRegex: undefined,
+	ignoreTags: [],
+	excludeTags: []
 }
 
 export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	settings: AnkiObsidianIntegrationSettings;
 	htmlConverter : Converter;
 
-	exclusionRegex: RegExp = /# \*\*((.|\n)*)|---((.|\n)*)---/g;
-
 	ignoreTags: string[] = [];
 	excludeTags: string[] = [];
-
+	
 	async onload() {
 		await this.loadSettings();
 		this.htmlConverter = new Converter();
@@ -29,6 +34,14 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		this.excludeTags.push("#exclude");
 
 		// This creates an icon in the left ribbon.
+		const ribbonIconTest = this.addRibbonIcon('dice', 'Test', async () => {
+			console.log('test');
+
+			console.log(this.settings.exclusionRegex);
+
+		});
+
+
 		const ribbonIconScanVault = this.addRibbonIcon('dice', 'Add/Update all notes on selected folder', async () => {
 			this.scanVault();
 		});
@@ -51,8 +64,6 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
 
-
-
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
@@ -71,7 +82,12 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 	/// Vault actions 
 	async scanVault(){
-		const files = this.getFilesOnFolder("Target Folder");
+		if(this.settings.targetFolder === ""){
+			new Notice("Target folder required for selected action")
+			return;
+		}
+
+		const files = this.getFilesOnFolder(this.settings.targetFolder);
 
 		for (let i = 0; i < files.length; i++) {	
 			let ankiId = await this.getAnkiCardIdFromFile(files[i]);
@@ -167,6 +183,9 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		let noteTitle = file.name.substring(0, file.name.length - 3);	
 		let noteContent = await this.app.vault.cachedRead(file);
 
+		// Remove YAML from noteContent
+		noteContent = noteContent.replace(/---((.|\n)*)---/g, "");
+		
 		let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ]+/g)].map(tag => tag[0]);
 
 		this.ignoreTags.forEach(ignorableTag => {
@@ -180,28 +199,14 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		}
 	}
 
-	/// ...
-	async addNewCard(file: TFile){
-		let noteInfo = await this.getInfoFromFile(file);
+	async addIdToNote(file: TFile, id: string){
+		let noteContent = await this.app.vault.cachedRead(file);
+		let yamlArr = this.extractYamlFromNote(noteContent)
 
-		if(this.foundExclusionTags(noteInfo.tags)) return;
-		
-
-		let deck = "Padrão";
-		if(noteInfo.tags.length > 0){
-			deck = this.getDeckFromTags(noteInfo.tags);
-		}
-
-		let noteContentWithExclusionRegex = noteInfo.noteContent.replace(this.exclusionRegex, "");
-
-		let ankiId = await this.addCardOnAnki(noteInfo.noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusionRegex), deck);
-
-		// Add id from created card on note
 		await this.app.vault.process(file, (data) => {
-			let yamlArr = this.extractYamlFromNote(noteInfo.noteContent)
 			let noteWithoutYaml = data.replace(/---((.|\n)*)---/g, "");
 
-			yamlArr.push("anki-id: " + ankiId);
+			yamlArr.push("anki-id: " + id);
 
 			let newData = `---\n${yamlArr.join("\n")}\n---${yamlArr.length == 1 ? "\n":""}${noteWithoutYaml}`
 
@@ -209,19 +214,44 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		})
 	}
 
-	async updateExistingCard(ankiId:number, file: TFile){
-		let noteInfo = await this.getInfoFromFile(file);
+	/// ...
+	async addNewCard(file: TFile){
+		let {noteTitle, noteContent, tags} = await this.getInfoFromFile(file);
 
-		if(this.foundExclusionTags(noteInfo.tags)) return;
+		if(this.foundExclusionTags(tags)) return;
+		
 
 		let deck = "Padrão";
-		if(noteInfo.tags.length > 0){
-			deck = this.getDeckFromTags(noteInfo.tags);
+		if(tags.length > 0){
+			deck = this.getDeckFromTags(tags);
 		}
 
-		let noteContentWithExclusionRegex = noteInfo.noteContent.replace(this.exclusionRegex, "");
+		if(this.settings.exclusionRegex){
+			noteContent = noteContent.replace(this.settings.exclusionRegex, "");
+		}
 
-		this.updateCardOnAnki(ankiId, noteInfo.noteTitle, this.htmlConverter.makeHtml(noteContentWithExclusionRegex), deck);
+		let ankiId = await this.addCardOnAnki(noteTitle, this.htmlConverter.makeHtml(noteContent), deck);
+
+		if(ankiId){
+			await this.addIdToNote(file, ankiId);
+		}
+	}
+
+	async updateExistingCard(ankiId:number, file: TFile){
+		let {noteTitle, noteContent, tags} = await this.getInfoFromFile(file);
+
+		if(this.foundExclusionTags(tags)) return;
+
+		let deck = "Padrão";
+		if(tags.length > 0){
+			deck = this.getDeckFromTags(tags);
+		}
+
+		if(this.settings.exclusionRegex){
+			noteContent = noteContent.replace(this.settings.exclusionRegex, "");
+		}
+
+		this.updateCardOnAnki(ankiId, noteTitle, this.htmlConverter.makeHtml(noteContent), deck);
 	}
 
 	async deleteExistingCard(ankiId:number, file: TFile){
@@ -335,7 +365,6 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 }
 
 
-
 class SampleSettingTab extends PluginSettingTab {
 	plugin: AnkiObsidianIntegrationPlugin;
 
@@ -350,14 +379,35 @@ class SampleSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
+		.setName("Target folder")
+		.setDesc("Select target folder for file scan")
+		.addText((text) =>
+			text
+			.setPlaceholder("/000/...")
+			.setValue(this.plugin.settings.targetFolder)
+			.onChange(async (value) => {
+				this.plugin.settings.targetFolder = value;
+				await this.plugin.saveSettings();
+			}));
+
+		new Setting(containerEl)
+			.setName('Exclusion regex')
+			.setDesc('Regex for ... text for the card ...?')
 			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
+				.setValue(this.plugin.settings.regexDisplayText)
 				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
+
+					this.plugin.settings.regexDisplayText = value;
+
+					if(this.plugin.settings.regexDisplayText != ""){
+						this.plugin.settings.exclusionRegex = new RegExp(value, "g");
+					} else {
+						this.plugin.settings.exclusionRegex = undefined;
+					}
+
 					await this.plugin.saveSettings();
 				}));
+			
+
 	}
 }
