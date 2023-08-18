@@ -23,7 +23,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	settings: AnkiObsidianIntegrationSettings;
 	htmlConverter : Converter;
 
-	createdDecks: string[] = ["Padrão", ];
+	createdDecks: string[] = ["Padrão"];
 
 	ignoreTags: string[] = [];
 	excludeTags: string[] = [];
@@ -234,6 +234,8 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		if(ankiId){
 			await this.addIdToNote(file, ankiId);
 		}
+
+		new Notice(`Card created: ${noteTitle} on ${deck}`);
 	}
 
 	async updateExistingCard(ankiId:number, file: TFile){
@@ -251,6 +253,8 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		}
 
 		this.updateCardOnAnki(ankiId, noteTitle, this.htmlConverter.makeHtml(noteContent), deck);
+
+		new Notice(`Card updated: ${noteTitle} on ${deck}`);
 	}
 
 	async deleteExistingCard(ankiId:number, file: TFile){
@@ -269,6 +273,8 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 			return newData
 		})
+
+		new Notice(`Card deleted`);
 	}
 
 
