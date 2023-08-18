@@ -23,6 +23,8 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	settings: AnkiObsidianIntegrationSettings;
 	htmlConverter : Converter;
 
+	createdDecks: string[] = ["Padrão", ];
+
 	ignoreTags: string[] = [];
 	excludeTags: string[] = [];
 	
@@ -34,14 +36,6 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		this.excludeTags.push("#exclude");
 
 		// This creates an icon in the left ribbon.
-		const ribbonIconTest = this.addRibbonIcon('dice', 'Test', async () => {
-			console.log('test');
-
-			console.log(this.settings.exclusionRegex);
-
-		});
-
-
 		const ribbonIconScanVault = this.addRibbonIcon('dice', 'Add/Update all notes on selected folder', async () => {
 			this.scanVault();
 		});
@@ -214,6 +208,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		})
 	}
 
+
 	/// ...
 	async addNewCard(file: TFile){
 		let {noteTitle, noteContent, tags} = await this.getInfoFromFile(file);
@@ -224,6 +219,10 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		let deck = "Padrão";
 		if(tags.length > 0){
 			deck = this.getDeckFromTags(tags);
+		}
+
+		if(!this.createdDecks.includes(deck)){
+			await this.addDeckOnAnki(deck);
 		}
 
 		if(this.settings.exclusionRegex){
@@ -276,7 +275,6 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	/// Anki
 	async addCardOnAnki(front: string, back: string, deck: string): Promise<string | null> {
 		const url = "http://localhost:8765/";
-
 
 		const body = JSON.stringify({
 			action: "addNote",
@@ -346,6 +344,30 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			"version": 6,
 			"params": {
 				"notes": [id]
+			}
+		});
+
+		let response = await fetch(url, {
+			method: "post",
+			body
+		}).then((response) => {
+			return response.json();
+		}).catch((error) => {
+			console.log(error);
+			return null;
+		})
+
+		return response.result;
+	}
+
+	async addDeckOnAnki(name: string): Promise<string | null>{
+		const url = "http://localhost:8765/";
+
+		const body = JSON.stringify({
+			action: "createDeck",
+			version: 6,
+			params: {
+				"deck": name
 			}
 		});
 
