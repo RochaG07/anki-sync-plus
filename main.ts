@@ -27,31 +27,39 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	settings: AnkiObsidianIntegrationSettings;
 	htmlConverter : Converter;
 
-	createdDecks: string[] = ["Padrão"];
+	createdDecks: string[] = ["Default"];
 	
 	async onload() {
 		await this.loadSettings();
 		this.htmlConverter = new Converter();
 
-		// This creates an icon in the left ribbon.
-		const ribbonIconScanVault = this.addRibbonIcon('dice', 'Add/Update all notes on selected folder', async () => {
-			this.scanVault();
+		// scanVault
+		this.addCommand({
+			id: "scanCommand",
+			name: "Add/Update all notes on selected folder",
+			icon: "dice",
+			callback: () => this.scanVault(),
 		});
+		this.addRibbonIcon("dice", "Add/Update all notes on selected folder", () => this.scanVault());
 
-		const ribbonIconAddCurrentFile = this.addRibbonIcon('dice', 'Add/Update current note', async () => {
-			this.addOrUpdateCurentFileCard();
+		// addOrUpdateCurentFileCard
+		this.addCommand({
+			id: "addUpdateSingleCardCommand",
+			name: "Add/Update card for current note",
+			icon: "dice",
+			callback: () => this.addOrUpdateCurentFileCard(),
 		});
+		this.addRibbonIcon('dice', 'Add/Update current note', () => this.addOrUpdateCurentFileCard());
 
-		const ribbonIconDeleteCurrentFile = this.addRibbonIcon('dice', 'Delete current note', async () => {
-			this.deleteCurentFileCard();
+		// deleteCurentFileCard
+		this.addCommand({
+			id: "deleteSingleCardCommand",
+			name: "Delete card for current note",
+			icon: "dice",
+			callback: () => this.deleteCurentFileCard(),
 		});
+		this.addRibbonIcon('dice', 'Delete current note', () => this.deleteCurentFileCard());
 
-		// Perform additional things with the ribbon
-		//ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		//const statusBarItemEl = this.addStatusBarItem();
-		//statusBarItemEl.setText('Status Bar Text');
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
@@ -214,7 +222,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		if(this.foundExclusionTags(tags)) return;
 		
 
-		let deck = "Padrão";
+		let deck = "Default";
 		if(tags.length > 0){
 			deck = this.getDeckFromTags(tags);
 		}
@@ -241,7 +249,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 		if(this.foundExclusionTags(tags)) return;
 
-		let deck = "Padrão";
+		let deck = "Default";
 		if(tags.length > 0){
 			deck = this.getDeckFromTags(tags);
 		}
@@ -286,10 +294,10 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			params: {
 				"note": {
 					"deckName": deck,
-					"modelName": "Básico",
+					"modelName": "Basic",
 					"fields": {
-						"Frente": front,
-						"Verso": back
+						"Front": front,
+						"Back": back
 						}    
 					}
 				}
@@ -318,10 +326,10 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 				"note": {
 					"id": id,
 					"deckName": deck,
-					"modelName": "Básico",
+					"modelName": "Basic",
 					"fields": {
-						"Frente": front,
-						"Verso": back
+						"Front": front,
+						"Back": back
 						}    
 					}
 				}
