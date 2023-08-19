@@ -5,7 +5,9 @@ import {Converter} from "showdown";
 
 interface AnkiObsidianIntegrationSettings {
 	targetFolder: string,
-	regexDisplayText: string,
+	regexDisplay: string,
+	ignoreTagsDisplay: string,
+	excludeTagsDisplay: string,
 	exclusionRegex: RegExp | undefined,
 	ignoreTags: string[],
 	excludeTags: string[]
@@ -13,7 +15,9 @@ interface AnkiObsidianIntegrationSettings {
 
 const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
 	targetFolder: "",
-	regexDisplayText: "",
+	regexDisplay: "",
+	ignoreTagsDisplay: "",
+	excludeTagsDisplay: "",
 	exclusionRegex: undefined,
 	ignoreTags: [],
 	excludeTags: []
@@ -24,16 +28,10 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	htmlConverter : Converter;
 
 	createdDecks: string[] = ["Padrão"];
-
-	ignoreTags: string[] = [];
-	excludeTags: string[] = [];
 	
 	async onload() {
 		await this.loadSettings();
 		this.htmlConverter = new Converter();
-
-		this.ignoreTags.push("#ignore");
-		this.excludeTags.push("#exclude");
 
 		// This creates an icon in the left ribbon.
 		const ribbonIconScanVault = this.addRibbonIcon('dice', 'Add/Update all notes on selected folder', async () => {
@@ -164,7 +162,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	foundExclusionTags(tags: string[]) : boolean {
 		let found = false;
 
-		this.excludeTags.forEach(excludedTag => {
+		this.settings.excludeTags.forEach(excludedTag => {
 			if(tags.find(tag => tag === excludedTag) != undefined){
 				found = true;
 			}
@@ -182,7 +180,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		
 		let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ]+/g)].map(tag => tag[0]);
 
-		this.ignoreTags.forEach(ignorableTag => {
+		this.settings.ignoreTags.forEach(ignorableTag => {
 			tags = tags.filter(tag => tag != ignorableTag)
 		})
 
@@ -411,7 +409,7 @@ class SampleSettingTab extends PluginSettingTab {
 		.setDesc("Select target folder for file scan")
 		.addText((text) =>
 			text
-			.setPlaceholder("/000/...")
+			.setPlaceholder("Zettlkasten/Permanent notes")
 			.setValue(this.plugin.settings.targetFolder)
 			.onChange(async (value) => {
 				this.plugin.settings.targetFolder = value;
@@ -419,15 +417,42 @@ class SampleSettingTab extends PluginSettingTab {
 			}));
 
 		new Setting(containerEl)
+		.setName('Exclusion tags')
+		.setDesc('Notes with these tags will not be included on card creation')
+		.addText(text => text
+			.setPlaceholder("#exclude,#WIP,...")
+			.setValue(this.plugin.settings.excludeTagsDisplay)
+			.onChange(async (value) => {
+				this.plugin.settings.excludeTagsDisplay = value;
+				this.plugin.settings.excludeTags = this.plugin.settings.excludeTagsDisplay.split(",");
+
+				await this.plugin.saveSettings();
+			}));
+
+		new Setting(containerEl)
+		.setName('Ignore tags')
+		.setDesc('Tags that will be ignored at deck creation')
+		.addText(text => text
+			.setPlaceholder("#ignore,#test,...")
+			.setValue(this.plugin.settings.ignoreTagsDisplay)
+			.onChange(async (value) => {
+				this.plugin.settings.ignoreTagsDisplay = value;
+				this.plugin.settings.ignoreTags = this.plugin.settings.ignoreTagsDisplay.split(",");
+
+				await this.plugin.saveSettings();
+			}));
+					
+
+		new Setting(containerEl)
 			.setName('Exclusion regex')
-			.setDesc('Regex for ... text for the card ...?')
+			.setDesc('Regex for removing matching text for card creation from the original note')
 			.addText(text => text
-				.setValue(this.plugin.settings.regexDisplayText)
+				.setValue(this.plugin.settings.regexDisplay)
 				.onChange(async (value) => {
 
-					this.plugin.settings.regexDisplayText = value;
+					this.plugin.settings.regexDisplay = value;
 
-					if(this.plugin.settings.regexDisplayText != ""){
+					if(this.plugin.settings.regexDisplay != ""){
 						this.plugin.settings.exclusionRegex = new RegExp(value, "g");
 					} else {
 						this.plugin.settings.exclusionRegex = undefined;
