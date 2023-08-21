@@ -290,7 +290,12 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 			yamlArr = yamlArr.filter(field => !field.contains("anki-id"));
 
-			let newData = `---\n${yamlArr.join("\n")}\n---${yamlArr.length == 1 ? "\n":""}${noteWithoutYaml}`;
+			let newData
+			if(yamlArr.length >= 1){
+				newData = `---\n${yamlArr.join("\n")}\n---${noteWithoutYaml}`;
+			} else {
+				newData = noteWithoutYaml;
+			}
 
 			return newData;
 		})
