@@ -92,10 +92,14 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		for (let i = 0; i < files.length; i++) {	
 			let ankiId = await this.getAnkiCardIdFromFile(files[i]);
 
-			if(ankiId){
-				this.updateExistingCard(ankiId, files[i]);
-			} else {
-				this.addNewCard(files[i]);
+			try {
+				if(ankiId){
+					await this.updateExistingCard(ankiId, files[i]);
+				} else {
+					await this.addNewCard(files[i]);
+				}
+			} catch (error) {
+				new Notice("Error: Could not connect to Anki")
 			}
 		}
 	}
@@ -106,12 +110,15 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 		let ankiId = await this.getAnkiCardIdFromFile(file);
 
-		if(ankiId){
-			this.updateExistingCard(ankiId, file);
-		} else {
-			this.addNewCard(file);
+		try {
+			if(ankiId){
+				await this.updateExistingCard(ankiId, file);
+			} else {
+				await this.addNewCard(file);
+			}
+		} catch (error) {
+			new Notice("Error: Could not connect to Anki")
 		}
-		
 	}
 
 	async deleteCurentFileCard(){
@@ -120,8 +127,15 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 		let ankiId = await this.getAnkiCardIdFromFile(file);
 
-		if(ankiId){
-			this.deleteExistingCard(ankiId, file);
+		if (!ankiId) {
+			new Notice("Error: Note does not contain anki-id")
+			return;
+		}
+
+		try {
+			await this.deleteExistingCard(ankiId, file);
+		} catch (error) {
+			new Notice("Error: Could not connect to Anki")
 		}
 	}
 
@@ -234,9 +248,9 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		if(this.settings.exclusionRegex){
 			noteContent = noteContent.replace(this.settings.exclusionRegex, "");
 		}
-
+		
 		let ankiId = await this.addCardOnAnki(noteTitle, this.htmlConverter.makeHtml(noteContent), deck);
-
+		
 		if(ankiId){
 			await this.addIdToNote(file, ankiId);
 		}
@@ -273,11 +287,11 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			let yamlArr = this.extractYamlFromNote(noteContent)
 			let noteWithoutYaml = data.replace(/---((.|\n)*)---/g, "");
 
-			yamlArr = yamlArr.filter(field => !field.contains("anki-id"))
+			yamlArr = yamlArr.filter(field => !field.contains("anki-id"));
 
-			let newData = `---\n${yamlArr.join("\n")}\n---${yamlArr.length == 1 ? "\n":""}${noteWithoutYaml}`
+			let newData = `---\n${yamlArr.join("\n")}\n---${yamlArr.length == 1 ? "\n":""}${noteWithoutYaml}`;
 
-			return newData
+			return newData;
 		})
 
 		new Notice(`Card deleted`);
@@ -308,8 +322,9 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			body
 		}).then((response) => {
 			return response.json();
-		}).catch((error) => {
+		}).catch((error) => {	
 			console.log(error);
+
 			return null;
 		})
 
@@ -395,7 +410,6 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 		return response.result;
 	}
-
 }
 
 
