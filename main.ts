@@ -9,6 +9,7 @@ interface AnkiObsidianIntegrationSettings {
 	ignoreTagsDisplay: string,
 	excludeTagsDisplay: string,
 	exclusionRegex: RegExp | undefined,
+	defaultDeck: string,
 	ignoreTags: string[],
 	excludeTags: string[]
 }
@@ -19,6 +20,7 @@ const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
 	ignoreTagsDisplay: "",
 	excludeTagsDisplay: "",
 	exclusionRegex: undefined,
+	defaultDeck: "Default",
 	ignoreTags: [],
 	excludeTags: []
 }
@@ -27,7 +29,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	settings: AnkiObsidianIntegrationSettings;
 	htmlConverter : Converter;
 
-	createdDecks: string[] = ["Default"];
+	createdDecks: string[] = [];
 	
 	async onload() {
 		await this.loadSettings();
@@ -235,8 +237,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 		if(this.foundExclusionTags(tags)) return;
 		
-
-		let deck = "Default";
+		let deck = this.settings.defaultDeck;
 		if(tags.length > 0){
 			deck = this.getDeckFromTags(tags);
 		}
@@ -263,7 +264,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 		if(this.foundExclusionTags(tags)) return;
 
-		let deck = "Default";
+		let deck = this.settings.defaultDeck;
 		if(tags.length > 0){
 			deck = this.getDeckFromTags(tags);
 		}
@@ -439,8 +440,20 @@ class SampleSettingTab extends PluginSettingTab {
 			}));
 
 		new Setting(containerEl)
+		.setName("Default deck")
+		.setDesc("Selected deck when there is no valid tags on note during card creation")
+		.addText((text) =>
+			text
+			.setPlaceholder("Default")
+			.setValue(this.plugin.settings.defaultDeck)
+			.onChange(async (value) => {
+				this.plugin.settings.defaultDeck = value;
+				await this.plugin.saveSettings();
+			}));
+
+		new Setting(containerEl)
 		.setName('Exclusion tags')
-		.setDesc('Notes with these tags will not be included on card creation')
+		.setDesc('Notes with these tags will NOT be included on card creation')
 		.addText(text => text
 			.setPlaceholder("#exclude,#WIP,...")
 			.setValue(this.plugin.settings.excludeTagsDisplay)
@@ -462,8 +475,7 @@ class SampleSettingTab extends PluginSettingTab {
 				this.plugin.settings.ignoreTags = this.plugin.settings.ignoreTagsDisplay.split(",");
 
 				await this.plugin.saveSettings();
-			}));
-					
+			}));	
 
 		new Setting(containerEl)
 			.setName('Exclusion regex')
