@@ -62,7 +62,6 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		});
 		this.addRibbonIcon('dice', 'Delete current note', () => this.deleteCurentFileCard());
 
-
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
 
@@ -113,12 +112,14 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		let ankiId = await this.getAnkiCardIdFromFile(file);
 
 		try {
+
 			if(ankiId){
 				await this.updateExistingCard(ankiId, file);
 			} else {
 				await this.addNewCard(file);
 			}
-		} catch (error) {
+
+		} catch (error) {			
 			new Notice("Error: Could not connect to Anki")
 		}
 	}
@@ -166,7 +167,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 	extractYamlFromNote(note: string): string[]{	
 		let output:string[] = [];
-		let yaml = note.match(/---((.|\n)*)---/g)?.toString();
+		let yaml = note.match(/^---((.|\n)*?)---/g)?.toString();
 
 		if(yaml){
 			output = [...yaml.replace(/---\n|\n---/g, "").split("\n")];
@@ -200,9 +201,9 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		let noteContent = await this.app.vault.cachedRead(file);
 
 		// Remove YAML from noteContent
-		noteContent = noteContent.replace(/---((.|\n)*)---/g, "");
+		noteContent = noteContent.replace(/^---((.|\n)*?)---/g, "");
 		
-		let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ]+/g)].map(tag => tag[0]);
+		let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ-]+/g)].map(tag => tag[0]);
 
 		this.settings.ignoreTags.forEach(ignorableTag => {
 			tags = tags.filter(tag => tag != ignorableTag)
@@ -220,7 +221,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		let yamlArr = this.extractYamlFromNote(noteContent)
 
 		await this.app.vault.process(file, (data) => {
-			let noteWithoutYaml = data.replace(/---((.|\n)*)---/g, "");
+			let noteWithoutYaml = data.replace(/^---((.|\n)*?)---/g, "");
 
 			yamlArr.push("anki-id: " + id);
 
@@ -236,6 +237,9 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		let {noteTitle, noteContent, tags} = await this.getInfoFromFile(file);
 
 		if(this.foundExclusionTags(tags)) return;
+
+		console.log("tags exc");
+		
 		
 		let deck = this.settings.defaultDeck;
 		if(tags.length > 0){
@@ -286,7 +290,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		// Remove anki id on note
 		await this.app.vault.process(file, (data) => {
 			let yamlArr = this.extractYamlFromNote(noteContent)
-			let noteWithoutYaml = data.replace(/---((.|\n)*)---/g, "");
+			let noteWithoutYaml = data.replace(/^---((.|\n)*?)---/g, "");
 
 			yamlArr = yamlArr.filter(field => !field.contains("anki-id"));
 
