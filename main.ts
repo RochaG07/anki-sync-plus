@@ -180,6 +180,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		let deck = tags[0].slice(1);
 		let captalizedLetter = deck.charAt(0).toUpperCase();
 		deck = captalizedLetter + deck.slice(1);
+		deck = deck.replace("-", " ");
 
 		return deck;
 	}
