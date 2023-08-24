@@ -203,7 +203,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		// Remove YAML from noteContent
 		noteContent = noteContent.replace(/^---((.|\n)*?)---/g, "");
 		
-		let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ-]+/g)].map(tag => tag[0]);
+		let tags = [...noteContent.matchAll(/ #[a-zA-Z0-9À-ÿ-]+/g)].map(tag => tag[0].trim());
 
 		this.settings.ignoreTags.forEach(ignorableTag => {
 			tags = tags.filter(tag => tag != ignorableTag)
@@ -236,10 +236,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	async addNewCard(file: TFile){
 		let {noteTitle, noteContent, tags} = await this.getInfoFromFile(file);
 
-		if(this.foundExclusionTags(tags)) return;
-
-		console.log("tags exc");
-		
+		if(this.foundExclusionTags(tags)) return;		
 		
 		let deck = this.settings.defaultDeck;
 		if(tags.length > 0){
