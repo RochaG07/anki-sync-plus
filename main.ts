@@ -311,6 +311,13 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			noteContent = noteContent.replace(this.settings.exclusionRegex, "");
 		}
 
+		let images = this.getImagesFromNote(noteContent);
+
+		if(images.length > 0){
+			await this.addImagesOnAnki(images);
+			noteContent = this.convertImagesMDToHtml(noteContent);
+		}
+
 		this.updateCardOnAnki(ankiId, noteTitle, this.htmlConverter.makeHtml(noteContent), deck);
 
 		new Notice(`Card updated: ${noteTitle} on ${deck}`);
