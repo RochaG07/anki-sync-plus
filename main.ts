@@ -1,6 +1,8 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, getAllTags } from 'obsidian';
 import {Converter} from "showdown";
 
+import * as fs from 'fs';
+
 // Remember to rename these classes and interfaces!
 
 interface AnkiObsidianIntegrationSettings {
@@ -14,6 +16,7 @@ interface AnkiObsidianIntegrationSettings {
 	excludeTags: string[]
 }
 
+
 const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
 	targetFolder: "",
 	regexDisplay: "",
@@ -24,6 +27,8 @@ const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
 	ignoreTags: [],
 	excludeTags: []
 }
+
+
 
 export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	settings: AnkiObsidianIntegrationSettings;
@@ -61,6 +66,8 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			callback: () => this.deleteCurentFileCard(),
 		});
 		this.addRibbonIcon('dice', 'Delete current note', () => this.deleteCurentFileCard());
+
+		//this.addRibbonIcon('dice', 'Test', () => this.addCardOnAnkiWithImages());
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
@@ -232,6 +239,28 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		})
 	}
 
+	getImagesFromNote(noteContent: string): string[]{
+		let images = [...noteContent.matchAll(/!\[\[((.|\n)*?)\]\]/g)].map(image => image[1]);
+
+		return images;
+	}	
+	
+	convertImagesMDToHtml(noteContent: string): string{
+		let output = noteContent.replace(/!\[\[((.|\n)*?)\]\]/g, "<img src='$1'>");
+
+		return output;
+	}
+
+	async convertImageToBase64(filePath: string): Promise<string> {
+		try {
+			const data = await fs.promises.readFile(filePath);
+			const base64String = btoa(String.fromCharCode(...new Uint8Array(data)));
+
+			return base64String;
+		} catch (error){
+			throw error;
+		}
+	}
 
 	/// ...
 	async addNewCard(file: TFile){
@@ -251,7 +280,14 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		if(this.settings.exclusionRegex){
 			noteContent = noteContent.replace(this.settings.exclusionRegex, "");
 		}
-		
+
+		let images = this.getImagesFromNote(noteContent);
+
+		if(images.length > 0){
+			await this.addImagesOnAnki(images);
+			noteContent = this.convertImagesMDToHtml(noteContent);
+		}
+	
 		let ankiId = await this.addCardOnAnki(noteTitle, this.htmlConverter.makeHtml(noteContent), deck);
 		
 		if(ankiId){
@@ -304,7 +340,6 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 		new Notice(`Card deleted`);
 	}
-
 
 	/// Anki
 	async addCardOnAnki(front: string, back: string, deck: string): Promise<string | null> {
@@ -413,6 +448,41 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			return response.json();
 		}).catch((error) => {
 			console.log(error);
+			return null;
+		})
+
+		return response.result;
+	}
+
+	async addImagesOnAnki(images: string[]): Promise<string | null> {
+		const url = "http://localhost:8765/";
+
+		const actions = await Promise.all(images.map(async image => {
+			const data = await this.convertImageToBase64(`C:/Users/guilh/OneDrive/Documentos/obsidian-plugin-testing/${image}`);
+			
+			return {
+			"action": "storeMediaFile",
+			"params": {
+			  "filename": image,
+			  "data": data
+			}}
+		}));
+
+		const body = JSON.stringify({
+			"action": "multi",
+			"params": {
+			  "actions": actions
+			}
+		});
+
+		let response = await fetch(url, {
+			method: "post",
+			body
+		}).then((response) => {
+			return response.json();
+		}).catch((error) => {	
+			console.log(error);
+
 			return null;
 		})
 
