@@ -35,6 +35,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	htmlConverter : Converter;
 
 	createdDecks: string[] = [];
+	excalidrawSupportActive = true;
 	
 	async onload() {
 		await this.loadSettings();
@@ -66,8 +67,6 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			callback: () => this.deleteCurentFileCard(),
 		});
 		this.addRibbonIcon('dice', 'Delete current note', () => this.deleteCurentFileCard());
-
-		//this.addRibbonIcon('dice', 'Test', () => this.addCardOnAnkiWithImages());
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
@@ -127,7 +126,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			}
 
 		} catch (error) {			
-			new Notice("Error: Could not connect to Anki")
+			new Notice("Error")
 		}
 	}
 
@@ -240,13 +239,26 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	}
 
 	getImagesFromNote(noteContent: string): string[]{
-		let images = [...noteContent.matchAll(/!\[\[((.|\n)*?)\]\]/g)].map(image => image[1]);
+
+		let images = [...noteContent.matchAll(/!\[\[((.|\n)*?)\]\]/g)].map(image => {
+			if(this.excalidrawSupportActive && image[1].match(/(.excalidraw)$/)){
+				return image[1]+".svg"
+			}
+			
+			return image[1];
+		});
+
+		images = images.filter(image => image.match(/(.png|.jpg|.svg)$/));
 
 		return images;
 	}	
 	
 	convertImagesMDToHtml(noteContent: string): string{
 		let output = noteContent.replace(/!\[\[((.|\n)*?)\]\]/g, "<img src='$1'>");
+
+		if(this.excalidrawSupportActive){
+			output = output.replace(/.excalidraw/g, ".excalidraw.svg");
+		}
 
 		return output;
 	}
@@ -286,9 +298,13 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		if(images.length > 0){
 			await this.addImagesOnAnki(images);
 			noteContent = this.convertImagesMDToHtml(noteContent);
+
+			console.log(noteContent);
+
 		}
 	
 		let ankiId = await this.addCardOnAnki(noteTitle, this.htmlConverter.makeHtml(noteContent), deck);
+
 		
 		if(ankiId){
 			await this.addIdToNote(file, ankiId);
@@ -318,9 +334,16 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			noteContent = this.convertImagesMDToHtml(noteContent);
 		}
 
-		this.updateCardOnAnki(ankiId, noteTitle, this.htmlConverter.makeHtml(noteContent), deck);
+		let reqSuccess = await this.updateCardOnAnki(ankiId, noteTitle, this.htmlConverter.makeHtml(noteContent), deck);
 
-		new Notice(`Card updated: ${noteTitle} on ${deck}`);
+		console.log(reqSuccess);
+
+		if(reqSuccess){
+			new Notice(`Card updated: ${noteTitle} on ${deck}`);
+		} else {
+			new Notice(`Card ${noteTitle} was deleted on Anki!`);
+		}
+
 	}
 
 	async deleteExistingCard(ankiId:number, file: TFile){
@@ -407,7 +430,7 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			return response.json();
 		}).catch((error) => {
 			console.log(error);
-			return null;
+			return error;
 		})
 
 		return response.result;
