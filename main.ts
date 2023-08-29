@@ -1,24 +1,14 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, getAllTags } from 'obsidian';
+import { Plugin } from 'obsidian';
 import {Converter} from "showdown";
 
-import * as fs from 'fs';
-
-// Remember to rename these classes and interfaces!
-
-interface AnkiObsidianIntegrationSettings {
-	targetFolder: string,
-	regexDisplay: string,
-	ignoreTagsDisplay: string,
-	excludeTagsDisplay: string,
-	exclusionRegex: RegExp | undefined,
-	defaultDeck: string,
-	ignoreTags: string[],
-	excludeTags: string[]
-}
-
+import { handleAddOrUpdateSingleFile, handleDeleteSingleFile, handleScanVault } from 'src/handlers';
+import { settingTab } from 'src/settingTab';
+import { AnkiObsidianIntegrationSettings } from 'src/interfaces';
+import { getBasePath } from 'src/getBasePath';
 
 const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
 	targetFolder: "",
+	attachmentsFolder: "",
 	regexDisplay: "",
 	ignoreTagsDisplay: "",
 	excludeTagsDisplay: "",
@@ -28,55 +18,56 @@ const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
 	excludeTags: []
 }
 
-
-
 export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	settings: AnkiObsidianIntegrationSettings;
-	htmlConverter : Converter;
+	basePath: string;
 
 	createdDecks: string[] = [];
 	excalidrawSupportActive = true;
 	
 	async onload() {
 		await this.loadSettings();
-		this.htmlConverter = new Converter();
 
-		// scanVault
+
 		this.addCommand({
 			id: "scanCommand",
 			name: "Add/Update all notes on selected folder",
 			icon: "dice",
-			callback: () => this.scanVault(),
+			callback: () => handleScanVault(this.app.vault, this.settings, this.createdDecks),
 		});
-		this.addRibbonIcon("dice", "Add/Update all notes on selected folder", () => this.scanVault());
+		this.addRibbonIcon("dice", "Add/Update all notes on selected folder", () => handleScanVault(this.app.vault, this.settings, this.createdDecks));
 
-		// addOrUpdateCurentFileCard
+
 		this.addCommand({
 			id: "addUpdateSingleCardCommand",
 			name: "Add/Update card for current note",
 			icon: "dice",
-			callback: () => this.addOrUpdateCurentFileCard(),
+			callback: () => handleAddOrUpdateSingleFile(this.app.vault, this.settings, this.createdDecks),
 		});
-		this.addRibbonIcon('dice', 'Add/Update current note', () => this.addOrUpdateCurentFileCard());
+		this.addRibbonIcon('dice', 'Add/Update current note', () => handleAddOrUpdateSingleFile(this.app.vault, this.settings, this.createdDecks));
 
-		// deleteCurentFileCard
+
 		this.addCommand({
 			id: "deleteSingleCardCommand",
 			name: "Delete card for current note",
 			icon: "dice",
-			callback: () => this.deleteCurentFileCard(),
+			callback: () => handleDeleteSingleFile(this.app.vault),
 		});
-		this.addRibbonIcon('dice', 'Delete current note', () => this.deleteCurentFileCard());
+		this.addRibbonIcon('dice', 'Delete current note', () => handleDeleteSingleFile(this.app.vault));
+
+
+		this.addRibbonIcon('dice', 'test', () => {
+		});
+
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new settingTab(this.app, this));
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
 	onunload() {
-
 	}
 
 	async loadSettings() {
@@ -85,523 +76,5 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-
-	/// Vault actions 
-	async scanVault(){
-		if(this.settings.targetFolder === ""){
-			new Notice("Target folder required for selected action")
-			return;
-		}
-
-		const files = this.getFilesOnFolder(this.settings.targetFolder);
-
-		for (let i = 0; i < files.length; i++) {	
-			let ankiId = await this.getAnkiCardIdFromFile(files[i]);
-
-			try {
-				if(ankiId){
-					await this.updateExistingCard(ankiId, files[i]);
-				} else {
-					await this.addNewCard(files[i]);
-				}
-			} catch (error) {
-				new Notice("Error: Could not connect to Anki")
-			}
-		}
-	}
-
-	async addOrUpdateCurentFileCard(){
-		let file = this.getCurrentFile();
-		if (!file) return;
-
-		let ankiId = await this.getAnkiCardIdFromFile(file);
-
-		try {
-
-			if(ankiId){
-				await this.updateExistingCard(ankiId, file);
-			} else {
-				await this.addNewCard(file);
-			}
-
-		} catch (error) {			
-			new Notice("Error")
-		}
-	}
-
-	async deleteCurentFileCard(){
-		let file = this.getCurrentFile();
-		if (!file) return;
-
-		let ankiId = await this.getAnkiCardIdFromFile(file);
-
-		if (!ankiId) {
-			new Notice("Error: Note does not contain anki-id")
-			return;
-		}
-
-		try {
-			await this.deleteExistingCard(ankiId, file);
-		} catch (error) {
-			new Notice("Error: Could not connect to Anki")
-		}
-	}
-
-	/// Utils
-	getCurrentFile(): TFile | null{
-		let editor = this.app.workspace.activeEditor;
-
-		return editor == null ? null : editor?.file
-	}
-
-	getFilesOnFolder(folder: string) : TFile[]{
-		const files = this.app.vault.getMarkdownFiles().filter(file => file.parent?.path == folder);
-
-		return files;
-	}
-
-	async getAnkiCardIdFromFile(file: TFile): Promise<number | null>{
-		let noteContent = await this.app.vault.cachedRead(file);
-
-		let m = noteContent.match(/anki-id: \d+/g)?.toString();
-
-		if (!m) return null;
-
-		return Number(m.match(/\d+/))
-	}
-
-	extractYamlFromNote(note: string): string[]{	
-		let output:string[] = [];
-		let yaml = note.match(/^---((.|\n)*?)---/g)?.toString();
-
-		if(yaml){
-			output = [...yaml.replace(/---\n|\n---/g, "").split("\n")];
-		}
-		
-		return output;
-	}
-
-	getDeckFromTags(tags: string[]): string{
-		let deck = tags[0].slice(1);
-		let captalizedLetter = deck.charAt(0).toUpperCase();
-		deck = captalizedLetter + deck.slice(1);
-		deck = deck.replace("-", " ");
-
-		return deck;
-	}
-
-	foundExclusionTags(tags: string[]) : boolean {
-		let found = false;
-
-		this.settings.excludeTags.forEach(excludedTag => {
-			if(tags.find(tag => tag === excludedTag) != undefined){
-				found = true;
-			}
-		})
-
-		return found;
-	}
-
-	async getInfoFromFile(file: TFile) : Promise<{ noteTitle: string; noteContent: string; tags: string[]; }>{
-		let noteTitle = file.name.substring(0, file.name.length - 3);	
-		let noteContent = await this.app.vault.cachedRead(file);
-
-		// Remove YAML from noteContent
-		noteContent = noteContent.replace(/^---((.|\n)*?)---/g, "");
-		
-		let tags = [...noteContent.matchAll(/ #[a-zA-Z0-9À-ÿ-]+/g)].map(tag => tag[0].trim());
-
-		this.settings.ignoreTags.forEach(ignorableTag => {
-			tags = tags.filter(tag => tag != ignorableTag)
-		})
-
-		return {
-			noteTitle, 
-			noteContent,
-			tags
-		}
-	}
-
-	async addIdToNote(file: TFile, id: string){
-		let noteContent = await this.app.vault.cachedRead(file);
-		let yamlArr = this.extractYamlFromNote(noteContent)
-
-		await this.app.vault.process(file, (data) => {
-			let noteWithoutYaml = data.replace(/^---((.|\n)*?)---/g, "");
-
-			yamlArr.push("anki-id: " + id);
-
-			let newData = `---\n${yamlArr.join("\n")}\n---${yamlArr.length == 1 ? "\n":""}${noteWithoutYaml}`
-
-			return newData
-		})
-	}
-
-	getImagesFromNote(noteContent: string): string[]{
-
-		let images = [...noteContent.matchAll(/!\[\[((.|\n)*?)\]\]/g)].map(image => {
-			if(this.excalidrawSupportActive && image[1].match(/(.excalidraw)$/)){
-				return image[1]+".svg"
-			}
-			
-			return image[1];
-		});
-
-		images = images.filter(image => image.match(/(.png|.jpg|.svg)$/));
-
-		return images;
-	}	
-	
-	convertImagesMDToHtml(noteContent: string): string{
-		let output = noteContent.replace(/!\[\[((.|\n)*?)\]\]/g, "<img src='$1'>");
-
-		if(this.excalidrawSupportActive){
-			output = output.replace(/.excalidraw/g, ".excalidraw.svg");
-		}
-
-		return output;
-	}
-
-	async convertImageToBase64(filePath: string): Promise<string> {
-		try {
-			const data = await fs.promises.readFile(filePath);
-			const base64String = btoa(String.fromCharCode(...new Uint8Array(data)));
-
-			return base64String;
-		} catch (error){
-			throw error;
-		}
-	}
-
-	/// ...
-	async addNewCard(file: TFile){
-		let {noteTitle, noteContent, tags} = await this.getInfoFromFile(file);
-
-		if(this.foundExclusionTags(tags)) return;		
-		
-		let deck = this.settings.defaultDeck;
-		if(tags.length > 0){
-			deck = this.getDeckFromTags(tags);
-		}
-
-		if(!this.createdDecks.includes(deck)){
-			await this.addDeckOnAnki(deck);
-		}
-
-		if(this.settings.exclusionRegex){
-			noteContent = noteContent.replace(this.settings.exclusionRegex, "");
-		}
-
-		let images = this.getImagesFromNote(noteContent);
-
-		if(images.length > 0){
-			await this.addImagesOnAnki(images);
-			noteContent = this.convertImagesMDToHtml(noteContent);
-
-			console.log(noteContent);
-
-		}
-	
-		let ankiId = await this.addCardOnAnki(noteTitle, this.htmlConverter.makeHtml(noteContent), deck);
-
-		
-		if(ankiId){
-			await this.addIdToNote(file, ankiId);
-		}
-
-		new Notice(`Card created: ${noteTitle} on ${deck}`);
-	}
-
-	async updateExistingCard(ankiId:number, file: TFile){
-		let {noteTitle, noteContent, tags} = await this.getInfoFromFile(file);
-
-		if(this.foundExclusionTags(tags)) return;
-
-		let deck = this.settings.defaultDeck;
-		if(tags.length > 0){
-			deck = this.getDeckFromTags(tags);
-		}
-
-		if(this.settings.exclusionRegex){
-			noteContent = noteContent.replace(this.settings.exclusionRegex, "");
-		}
-
-		let images = this.getImagesFromNote(noteContent);
-
-		if(images.length > 0){
-			await this.addImagesOnAnki(images);
-			noteContent = this.convertImagesMDToHtml(noteContent);
-		}
-
-		let reqSuccess = await this.updateCardOnAnki(ankiId, noteTitle, this.htmlConverter.makeHtml(noteContent), deck);
-
-		console.log(reqSuccess);
-
-		if(reqSuccess){
-			new Notice(`Card updated: ${noteTitle} on ${deck}`);
-		} else {
-			new Notice(`Card ${noteTitle} was deleted on Anki!`);
-		}
-
-	}
-
-	async deleteExistingCard(ankiId:number, file: TFile){
-		this.deleteCardOnAnki(ankiId);
-
-		let noteContent = await this.app.vault.cachedRead(file);
-
-		// Remove anki id on note
-		await this.app.vault.process(file, (data) => {
-			let yamlArr = this.extractYamlFromNote(noteContent)
-			let noteWithoutYaml = data.replace(/^---((.|\n)*?)---/g, "");
-
-			yamlArr = yamlArr.filter(field => !field.contains("anki-id"));
-
-			let newData
-			if(yamlArr.length >= 1){
-				newData = `---\n${yamlArr.join("\n")}\n---${noteWithoutYaml}`;
-			} else {
-				newData = noteWithoutYaml;
-			}
-
-			return newData;
-		})
-
-		new Notice(`Card deleted`);
-	}
-
-	/// Anki
-	async addCardOnAnki(front: string, back: string, deck: string): Promise<string | null> {
-		const url = "http://localhost:8765/";
-
-		const body = JSON.stringify({
-			action: "addNote",
-			version: 6,
-			params: {
-				"note": {
-					"deckName": deck,
-					"modelName": "Basic",
-					"fields": {
-						"Front": front,
-						"Back": back
-						}    
-					}
-				}
-		});
-
-		let response = await fetch(url, {
-			method: "post",
-			body
-		}).then((response) => {
-			return response.json();
-		}).catch((error) => {	
-			console.log(error);
-
-			return null;
-		})
-
-		return response.result;
-	}
-
-	async updateCardOnAnki(id: number, front: string, back: string, deck: string): Promise<string | null> {
-		const url = "http://localhost:8765/";
-
-		const body = JSON.stringify({
-			action: "updateNote",
-			version: 6,
-			params: {
-				"note": {
-					"id": id,
-					"deckName": deck,
-					"modelName": "Basic",
-					"fields": {
-						"Front": front,
-						"Back": back
-						}    
-					}
-				}
-		});
-
-		let response = await fetch(url, {
-			method: "post",
-			body
-		}).then((response) => {
-			return response.json();
-		}).catch((error) => {
-			console.log(error);
-			return error;
-		})
-
-		return response.result;
-	}
-
-	async deleteCardOnAnki(id: number): Promise<string | null> {
-		const url = "http://localhost:8765/";
-
-		const body = JSON.stringify({
-			"action": "deleteNotes",
-			"version": 6,
-			"params": {
-				"notes": [id]
-			}
-		});
-
-		let response = await fetch(url, {
-			method: "post",
-			body
-		}).then((response) => {
-			return response.json();
-		}).catch((error) => {
-			console.log(error);
-			return null;
-		})
-
-		return response.result;
-	}
-
-	async addDeckOnAnki(name: string): Promise<string | null>{
-		const url = "http://localhost:8765/";
-
-		const body = JSON.stringify({
-			action: "createDeck",
-			version: 6,
-			params: {
-				"deck": name
-			}
-		});
-
-		let response = await fetch(url, {
-			method: "post",
-			body
-		}).then((response) => {
-			return response.json();
-		}).catch((error) => {
-			console.log(error);
-			return null;
-		})
-
-		return response.result;
-	}
-
-	async addImagesOnAnki(images: string[]): Promise<string | null> {
-		const url = "http://localhost:8765/";
-
-		const actions = await Promise.all(images.map(async image => {
-			const data = await this.convertImageToBase64(`C:/Users/guilh/OneDrive/Documentos/obsidian-plugin-testing/${image}`);
-			
-			return {
-			"action": "storeMediaFile",
-			"params": {
-			  "filename": image,
-			  "data": data
-			}}
-		}));
-
-		const body = JSON.stringify({
-			"action": "multi",
-			"params": {
-			  "actions": actions
-			}
-		});
-
-		let response = await fetch(url, {
-			method: "post",
-			body
-		}).then((response) => {
-			return response.json();
-		}).catch((error) => {	
-			console.log(error);
-
-			return null;
-		})
-
-		return response.result;
-	}
-}
-
-
-class SampleSettingTab extends PluginSettingTab {
-	plugin: AnkiObsidianIntegrationPlugin;
-
-	constructor(app: App, plugin: AnkiObsidianIntegrationPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
-		.setName("Target folder")
-		.setDesc("Select target folder for file scan")
-		.addText((text) =>
-			text
-			.setPlaceholder("Zettlkasten/Permanent notes")
-			.setValue(this.plugin.settings.targetFolder)
-			.onChange(async (value) => {
-				this.plugin.settings.targetFolder = value;
-				await this.plugin.saveSettings();
-			}));
-
-		new Setting(containerEl)
-		.setName("Default deck")
-		.setDesc("Selected deck when there is no valid tags on note during card creation")
-		.addText((text) =>
-			text
-			.setPlaceholder("Default")
-			.setValue(this.plugin.settings.defaultDeck)
-			.onChange(async (value) => {
-				this.plugin.settings.defaultDeck = value;
-				await this.plugin.saveSettings();
-			}));
-
-		new Setting(containerEl)
-		.setName('Exclusion tags')
-		.setDesc('Notes with these tags will NOT be included on card creation')
-		.addText(text => text
-			.setPlaceholder("#exclude,#WIP,...")
-			.setValue(this.plugin.settings.excludeTagsDisplay)
-			.onChange(async (value) => {
-				this.plugin.settings.excludeTagsDisplay = value;
-				this.plugin.settings.excludeTags = this.plugin.settings.excludeTagsDisplay.split(",");
-
-				await this.plugin.saveSettings();
-			}));
-
-		new Setting(containerEl)
-		.setName('Ignore tags')
-		.setDesc('Tags that will be ignored at deck creation')
-		.addText(text => text
-			.setPlaceholder("#ignore,#test,...")
-			.setValue(this.plugin.settings.ignoreTagsDisplay)
-			.onChange(async (value) => {
-				this.plugin.settings.ignoreTagsDisplay = value;
-				this.plugin.settings.ignoreTags = this.plugin.settings.ignoreTagsDisplay.split(",");
-
-				await this.plugin.saveSettings();
-			}));	
-
-		new Setting(containerEl)
-			.setName('Exclusion regex')
-			.setDesc('Regex for removing matching text for card creation from the original note')
-			.addText(text => text
-				.setValue(this.plugin.settings.regexDisplay)
-				.onChange(async (value) => {
-
-					this.plugin.settings.regexDisplay = value;
-
-					if(this.plugin.settings.regexDisplay != ""){
-						this.plugin.settings.exclusionRegex = new RegExp(value, "g");
-					} else {
-						this.plugin.settings.exclusionRegex = undefined;
-					}
-
-					await this.plugin.saveSettings();
-				}));
-			
-
 	}
 }
