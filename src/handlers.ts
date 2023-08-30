@@ -5,7 +5,7 @@ import { AnkiObsidianIntegrationSettings } from './interfaces';
 
 export async function handleScanVault(vault: Vault, settings: AnkiObsidianIntegrationSettings, createdDecks: string[]){
     if(settings.targetFolder === ""){
-        new Notice("Target folder required for selected action")
+        new Notice("Target folder required for this action")
         return;
     }
 
@@ -31,7 +31,8 @@ export async function handleScanVault(vault: Vault, settings: AnkiObsidianIntegr
                 );
             }
         } catch (error) {
-            new Notice("Error: Could not connect to Anki")
+            new Notice("Error: Could not connect to Anki");
+            return;
         }
     }
 }

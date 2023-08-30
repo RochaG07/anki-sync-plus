@@ -1,3 +1,4 @@
+import { imagesToSend } from "./interfaces";
 import { convertImageToBase64 } from "./utils";
 
 export async function addCardOnAnki(front: string, back: string, deck: string): Promise<string | null> {
@@ -112,16 +113,16 @@ export async function addDeckOnAnki(name: string): Promise<string | null>{
     return response.result;
 }
 
-export async function addImagesOnAnki(imagesFilenames: string[], path: string): Promise<string | null> {
+export async function addImagesOnAnki(images: imagesToSend[]): Promise<string | null> {
     const url = "http://localhost:8765/";
 
-    const actions = await Promise.all(imagesFilenames.map(async imageFilename => {
-        const data = await convertImageToBase64(`${path}\\${imageFilename}`);
+    const actions = await Promise.all(images.map(async image => {
+        const data = await convertImageToBase64(image.path);
 
         return {
         "action": "storeMediaFile",
         "params": {
-          "filename": imageFilename,
+          "filename": image.filename,
           "data": data
         }}
     }));

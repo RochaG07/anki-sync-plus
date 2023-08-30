@@ -28,7 +28,7 @@ export class settingTab extends PluginSettingTab {
 			}));
 
 		new Setting(containerEl)
-		.setName("Attackments folder")
+		.setName("Attachments folder")
 		.setDesc("Select folder for images")
 		.addText((text) =>
 			text
@@ -95,6 +95,32 @@ export class settingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 			
+			new Setting(containerEl)
+			.setName('Excalidraw support')
+			.setDesc('Toggle support for excalidraw drawings\n. IMPORTANT: For this feature to work, the option to auto-export has to be enabled as an .svg file on the excalidraw plugin settings')
+			.addToggle(text => text
+				.setValue(this.plugin.settings.excalidrawSupportEnabled)
+				.onChange(async () => {
+					this.plugin.settings.excalidrawSupportEnabled = !this.plugin.settings.excalidrawSupportEnabled;
+
+					await this.plugin.saveSettings();
+					this.display();
+			}));
+
+			if(this.plugin.settings.excalidrawSupportEnabled){
+				new Setting(containerEl)
+				.setName("Excalidraw attachments folder")
+				.setDesc("Select folder for excalidraw auto-exported .svg files")
+				.addText((text) =>
+					text
+					.setPlaceholder("Attachments/Excalidraw")
+					.setValue(this.plugin.settings.excalidrawFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.excalidrawFolder = value;
+						await this.plugin.saveSettings();
+					}));
+			}
+
 
 	}
 }

@@ -1,10 +1,8 @@
 import { Plugin } from 'obsidian';
-import {Converter} from "showdown";
 
 import { handleAddOrUpdateSingleFile, handleDeleteSingleFile, handleScanVault } from 'src/handlers';
 import { settingTab } from 'src/settingTab';
 import { AnkiObsidianIntegrationSettings } from 'src/interfaces';
-import { getBasePath } from 'src/getBasePath';
 
 const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
 	targetFolder: "",
@@ -15,7 +13,9 @@ const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
 	exclusionRegex: undefined,
 	defaultDeck: "Default",
 	ignoreTags: [],
-	excludeTags: []
+	excludeTags: [],
+	excalidrawSupportEnabled: false,
+	excalidrawFolder: "",
 }
 
 export default class AnkiObsidianIntegrationPlugin extends Plugin {

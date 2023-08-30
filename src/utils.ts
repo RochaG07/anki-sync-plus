@@ -1,5 +1,6 @@
 import { TFile, Vault } from 'obsidian';
 import * as fs from 'fs';
+import { imagesToSend as imageToSend } from './interfaces';
 
 export function getCurrentFile(): TFile | null{
     let editor = this.app.workspace.activeEditor;
@@ -108,27 +109,36 @@ export async function removeAnkiIdFromNote(file: TFile, vault: Vault){
     })
 }
 
-export function getImagesFromNote(noteContent: string): string[]{
+export function appendSVGToExcalidrawFiles(noteContent: string): string{
+    noteContent = noteContent.replace(/.excalidraw/gm, ".excalidraw.svg")
 
-    let images = [...noteContent.matchAll(/!\[\[((.|\n)*?)\]\]/g)].map(image => {
-        if(image[1].match(/(.excalidraw)$/)){
-            return image[1]+".svg"
+    return noteContent;
+}	
+
+export function getImagesFromNote(noteContent: string, basePath:string, attachmentsFolder: string, excalidrawFolder: string = ''): imageToSend[]{
+
+    let images = [...noteContent.matchAll(/!\[\[((.|\n)*?)\]\]/g)]
+    .filter(match => match[1].match(/(.png|.jpg|.svg)$/))
+    .map(match => {
+        return {
+            filename: match[1],
+            path: getImagePath(match[1], basePath, attachmentsFolder, excalidrawFolder)
         }
-        
-        return image[1];
     });
-
-    images = images.filter(image => image.match(/(.png|.jpg|.svg)$/));
 
     return images;
 }	
 
+export function getImagePath(filename: string, basePath:string, attachmentsFolder: string, excalidrawFolder: string = '' ): string{
+    if(filename.contains(".excalidraw")){
+        return `${basePath}\\${excalidrawFolder}\\${filename}`;
+    }
+
+    return `${basePath}\\${attachmentsFolder}\\${filename}`;
+}
+
 export function convertImagesMDToHtml(noteContent: string): string{
     let output = noteContent.replace(/!\[\[((.|\n)*?)\]\]/g, "<img src='$1'>");
-
-    
-    output = output.replace(/.excalidraw/g, ".excalidraw.svg");
-    
 
     return output;
 }

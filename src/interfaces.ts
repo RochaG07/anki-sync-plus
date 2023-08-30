@@ -7,5 +7,13 @@ export interface AnkiObsidianIntegrationSettings {
 	exclusionRegex: RegExp | undefined,
 	defaultDeck: string,
 	ignoreTags: string[],
-	excludeTags: string[]
+	excludeTags: string[],
+	excalidrawSupportEnabled: boolean,
+	excalidrawFolder: string,
+
+}
+
+export interface imagesToSend {
+    filename: string,
+    path: string,
 }

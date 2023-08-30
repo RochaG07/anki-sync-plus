@@ -1,9 +1,11 @@
 import { TFile, Notice, Vault } from "obsidian";
-import { getInfoFromFile, foundExclusionTags, getDeckFromTags, getImagesFromNote, convertImagesMDToHtml, addAnkiIdToNote, extractYamlFromNote, removeAnkiIdFromNote } from "./utils";
+import { getInfoFromFile, foundExclusionTags, getDeckFromTags, getImagesFromNote, convertImagesMDToHtml, addAnkiIdToNote, extractYamlFromNote, removeAnkiIdFromNote, appendSVGToExcalidrawFiles } from "./utils";
 import { addCardOnAnki, addDeckOnAnki, addImagesOnAnki, deleteCardOnAnki, updateCardOnAnki } from "./ankiCommunication";
 import { Converter } from "showdown";
-import { AnkiObsidianIntegrationSettings } from "./interfaces";
+import { AnkiObsidianIntegrationSettings, imagesToSend } from "./interfaces";
 import { getBasePath } from "./getBasePath";
+
+
 
 export async function addNewCard( file: TFile, vault: Vault, createdDecks: string[], settings: AnkiObsidianIntegrationSettings){
     let {noteTitle, noteContent, tags} = await getInfoFromFile(file, settings.ignoreTags);
@@ -24,12 +26,14 @@ export async function addNewCard( file: TFile, vault: Vault, createdDecks: strin
         noteContent = noteContent.replace(settings.exclusionRegex, "");
     }
 
-    let images = getImagesFromNote(noteContent);
+    if(settings.excalidrawSupportEnabled){
+        noteContent = appendSVGToExcalidrawFiles(noteContent)
+    }
+
+    let images = getImagesFromNote(noteContent, getBasePath(vault), settings.attachmentsFolder, settings.excalidrawFolder);
 
     if(images.length > 0){
-        let path = `${getBasePath(vault)}\\${settings.attachmentsFolder}`;
-
-        await addImagesOnAnki(images, path);
+        await addImagesOnAnki(images);
         noteContent = convertImagesMDToHtml(noteContent);
     }
 
@@ -57,12 +61,14 @@ export async function updateExistingCard(ankiId:number, file: TFile, vault: Vaul
         noteContent = noteContent.replace(settings.exclusionRegex, "");
     }
 
-    let images = getImagesFromNote(noteContent);
+    if(settings.excalidrawSupportEnabled){
+        noteContent = appendSVGToExcalidrawFiles(noteContent)
+    }
+
+    let images = getImagesFromNote(noteContent, getBasePath(vault), settings.attachmentsFolder, settings.excalidrawFolder);
 
     if(images.length > 0){
-        let path = `${getBasePath(vault)}\\${settings.attachmentsFolder}`;
-
-        await addImagesOnAnki(images, path);
+        await addImagesOnAnki(images);
         noteContent = convertImagesMDToHtml(noteContent);
     }
 
