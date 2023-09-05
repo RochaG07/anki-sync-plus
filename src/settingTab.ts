@@ -20,7 +20,7 @@ export class settingTab extends PluginSettingTab {
 		.setDesc("Select target folder for file scan")
 		.addText((text) =>
 			text
-			.setPlaceholder("Zettlkasten/Permanent notes")
+			.setPlaceholder("Folder/Sub-folder")
 			.setValue(this.plugin.settings.targetFolder)
 			.onChange(async (value) => {
 				this.plugin.settings.targetFolder = value;

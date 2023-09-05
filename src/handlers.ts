@@ -5,7 +5,7 @@ import { AnkiObsidianIntegrationSettings } from './interfaces';
 
 export async function handleScanVault(vault: Vault, settings: AnkiObsidianIntegrationSettings, createdDecks: string[]){
     if(settings.targetFolder === ""){
-        new Notice("Target folder required for this action")
+        new Notice("Target folder needs to be set for this action")
         return;
     }
 

@@ -8,8 +8,7 @@ import { getBasePath } from "./getBasePath";
 
 
 export async function addNewCard( file: TFile, vault: Vault, createdDecks: string[], settings: AnkiObsidianIntegrationSettings){
-    let {noteTitle, noteContent, tags} = await getInfoFromFile(file, settings.ignoreTags, settings.tagsInProps);
-    
+    let {noteTitle, noteContent, tags} = await getInfoFromFile(file, settings.ignoreTags, settings.tagsInProps); 
 
     if(foundExclusionTags(tags, settings.excludeTags)) return;		
     
