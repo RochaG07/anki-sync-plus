@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
 	excludeTags: [],
 	excalidrawSupportEnabled: false,
 	excalidrawFolder: "",
+	tagsInProps: false
 }
 
 export default class AnkiObsidianIntegrationPlugin extends Plugin {

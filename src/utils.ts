@@ -34,7 +34,7 @@ export function extractYamlFromNote(note: string): string[]{
 }
 
 export function getDeckFromTags(tags: string[]): string{
-    let deck = tags[0].slice(1);
+    let deck = tags[0].slice(1).trim();
     let captalizedLetter = deck.charAt(0).toUpperCase();
     deck = captalizedLetter + deck.slice(1);
     deck = deck.replace("-", " ");
@@ -54,14 +54,19 @@ export function foundExclusionTags(tags: string[], excludeTags: string[]) : bool
     return found;
 }
 
-export async function getInfoFromFile(file: TFile, ignoreTags: string[]) : Promise<{ noteTitle: string; noteContent: string; tags: string[]; }>{
+export async function getInfoFromFile(file: TFile, ignoreTags: string[], tagsInProps: boolean) : Promise<{ noteTitle: string; noteContent: string; tags: string[]; }>{
     let noteTitle = file.name.substring(0, file.name.length - 3);	
     let noteContent = await this.app.vault.cachedRead(file);
+    let tags: string[] = [];
 
-    // Remove YAML from noteContent
+    if(tagsInProps){
+        tags = getTagsFromProps(noteContent)
+    } else {
+        tags = getTagsFromNoteBody(noteContent)
+    }
+
+    // Remove YAML(Props) from noteContent
     noteContent = noteContent.replace(/^---((.|\n)*?)---/g, "");
-    
-    let tags = [...noteContent.matchAll(/ #[a-zA-Z0-9À-ÿ-]+/g)].map(tag => tag[0].trim());
 
     ignoreTags.forEach(ignorableTag => {
         tags = tags.filter(tag => tag != ignorableTag)
@@ -72,6 +77,18 @@ export async function getInfoFromFile(file: TFile, ignoreTags: string[]) : Promi
         noteContent,
         tags
     }
+}
+
+function getTagsFromNoteBody(noteContent: string): string[]{
+    let tags = [...noteContent.matchAll(/ #[a-zA-Z0-9À-ÿ-]+/g)].map(tag => tag[0].trim());
+
+    return tags;
+}
+
+function getTagsFromProps(noteContent: string): string[]{
+    let tags = [...noteContent.matchAll(/  - [a-zA-Z0-9À-ÿ-]+/g)].map(tag => tag[0].trim());
+
+    return tags;
 }
 
 export async function addAnkiIdToNote(file: TFile, id: string, vault: Vault){

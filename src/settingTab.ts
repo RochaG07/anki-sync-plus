@@ -94,6 +94,18 @@ export class settingTab extends PluginSettingTab {
 
 					await this.plugin.saveSettings();
 				}));
+
+			new Setting(containerEl)
+			.setName('Tags in properties')
+			.setDesc('If you activate this setting, it will search for tags within the "tags" field in Props; otherwise, it will search for tags in the rest of the note')
+			.addToggle(text => text
+				.setValue(this.plugin.settings.tagsInProps)
+				.onChange(async () => {
+					this.plugin.settings.tagsInProps = !this.plugin.settings.tagsInProps;
+
+					await this.plugin.saveSettings();
+					this.display();
+			}));
 			
 			new Setting(containerEl)
 			.setName('Excalidraw support')
