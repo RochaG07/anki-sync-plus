@@ -29,7 +29,6 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-
 		this.addCommand({
 			id: "scanCommand",
 			name: "Add/Update cards for all notes of selected folder on Anki",

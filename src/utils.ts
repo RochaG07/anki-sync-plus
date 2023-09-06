@@ -86,7 +86,7 @@ export async function getInfoFromFile(file: TFile, ignoreTags: string[], tagsInP
 }
 
 function getTagsFromNoteBody(noteContent: string): string[]{
-    let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ-]+/g)].map(tag => tag[0].trim());
+    let tags = [...noteContent.matchAll(/(?:^|\s)(#[a-zA-Z0-9À-ÿ-]+)/g)].map(tag => tag[0].trim());
 
     return tags;
 }

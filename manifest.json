@@ -1,9 +1,9 @@
 {
-	"id": "anki-sync-plus-plugin",
+	"id": "anki-sync-plus",
 	"name": "AnkiSync+",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Unlock the power of seamless integration between Obsidian and Anki with AnkiSync+",
+	"description": "Integration between Obsidian and Anki.",
 	"author": "RochaG0",
 	"authorUrl": "https://github.com/RochaG07",
 	"fundingUrl": "https://ko-fi.com/rochag07",
