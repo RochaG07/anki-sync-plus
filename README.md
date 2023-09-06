@@ -34,12 +34,4 @@ Unlock the power of seamless integration between [Obsidian](https://obsidian.md/
 ## 💖 Support
 If you find value in this plugin and wish to contribute to its ongoing development, you have the option to show your support on Ko-fi.
 
-<script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
-<script>
-  kofiWidgetOverlay.draw('rochag07', {
-    'type': 'floating-chat',
-    'floating-chat.donateButton.text': 'Support me',
-    'floating-chat.donateButton.background-color': '#ff5f5f',
-    'floating-chat.donateButton.text-color': '#fff'
-  });
-</script>
+[https://ko-fi/rochag07](https://ko-fi.com/rochag07).
