@@ -133,6 +133,14 @@ export class settingTab extends PluginSettingTab {
 					}));
 			}
 
-
+			new Setting(containerEl)
+            .setName("Donate")
+            .setDesc(
+                "If you enjoy using this Plugin, please consider making a donation to help me sustain its ongoing development."
+            )
+            .addButton((bt) => {
+                bt.buttonEl.outerHTML =
+                    "<a href='https://ko-fi.com/rochag07' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://cdn.ko-fi.com/cdn/kofi3.png?v=3' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>";
+            });
 	}
 }
