@@ -97,7 +97,7 @@ export class settingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 			.setName('Tags in properties')
-			.setDesc('If you activate this setting, it will search for tags within the "tags" field in Props; otherwise, it will search for tags in the rest of the note')
+			.setDesc('If you activate this setting, it will search for tags within the "tags" field in Props; otherwise, it will only search for tags on the rest of the note')
 			.addToggle(text => text
 				.setValue(this.plugin.settings.tagsInProps)
 				.onChange(async () => {

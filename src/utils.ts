@@ -57,15 +57,21 @@ export function foundExclusionTags(tags: string[], excludeTags: string[]) : bool
 export async function getInfoFromFile(file: TFile, ignoreTags: string[], tagsInProps: boolean) : Promise<{ noteTitle: string; noteContent: string; tags: string[]; }>{
     let noteTitle = file.name.substring(0, file.name.length - 3);	
     let noteContent = await this.app.vault.cachedRead(file);
+
     let tags: string[] = [];
 
     if(tagsInProps){
         tags = getTagsFromProps(noteContent)
-    } else {
-        tags = getTagsFromNoteBody(noteContent)
-    }
+    } 
 
-    // Remove YAML(Props) from noteContent
+    tags = [...tags,...getTagsFromNoteBody(noteContent)];
+
+    console.log(...getTagsFromProps(noteContent));
+    console.log(...getTagsFromNoteBody(noteContent));
+
+    console.log(tags);
+    
+    // Remove YAML(Props) for final card
     noteContent = noteContent.replace(/^---((.|\n)*?)---/g, "");
 
     ignoreTags.forEach(ignorableTag => {
@@ -80,7 +86,7 @@ export async function getInfoFromFile(file: TFile, ignoreTags: string[], tagsInP
 }
 
 function getTagsFromNoteBody(noteContent: string): string[]{
-    let tags = [...noteContent.matchAll(/ #[a-zA-Z0-9À-ÿ-]+/g)].map(tag => tag[0].trim());
+    let tags = [...noteContent.matchAll(/#[a-zA-Z0-9À-ÿ-]+/g)].map(tag => tag[0].trim());
 
     return tags;
 }

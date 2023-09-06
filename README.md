@@ -1,7 +1,7 @@
 # AnkiSync+
 Unlock the power of seamless integration between [Obsidian](https://obsidian.md/) and [Anki](https://apps.ankiweb.net/) with AnkiSync+, a feature-packed plugin designed to enhance your flashcard creation experience.
 
-## Key Features
+## ✨ Key Features
 - *Automated Card Management:* Scan the selected folder effortlessly to add new cards or update existing ones. Keep your knowledge up-to-date with ease.
 - *Note-Based Card Actions:* Choose to add, update, or delete individual cards directly from your currently selected note. Tailor your flashcards to your evolving learning needs.
 - *Organize with Tags:* Organize your flashcards into decks using tags as deck names. The first tag found on a note becomes the deck name, streamlining your card organization.
@@ -12,10 +12,7 @@ Unlock the power of seamless integration between [Obsidian](https://obsidian.md/
 - *Excalidraw Integration:* Take your diagrams and visual explanations to the next level with support for embedded [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) drawings.
 - *Customizable Regex:* Fine-tune card creation by using regular expressions to omit matching text, ensuring that your flashcards are concise and focused.
 
-With AnkiSync+, the bridge between Obsidian and Anki has never been stronger. Empower your learning journey by effortlessly creating and managing flashcards within your Obsidian vault. Upgrade your note-taking and studying experience with this powerful, feature-rich plugin today!
-
-
-## Setup
+## 👨‍🔧 Setup
 1. Launch Anki and access your preferred profile.
 2. Confirm that you have [AnkiConnect](https://ankiweb.net/shared/info/2055492159) installed.
 3. In Anki, go to Tools -> Addons -> AnkiConnect -> Configuration, and modify it to match the following settings.
