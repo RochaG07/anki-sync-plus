@@ -37,7 +37,7 @@ export function getDeckFromTags(tags: string[]): string{
     let deck = tags[0].slice(1).trim();
     let captalizedLetter = deck.charAt(0).toUpperCase();
     deck = captalizedLetter + deck.slice(1);
-    deck = deck.replace("-", " ");
+    deck = deck.replace(/-/g, " ");
 
     return deck;
 }
