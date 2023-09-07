@@ -24,6 +24,7 @@ export async function addNewCard( file: TFile, vault: Vault, createdDecks: strin
         await addAnkiIdToNote(file, ankiId, vault);
     }
 
+    console.log(`Card created: ${card.front} on ${card.deck}`);
     new Notice(`Card created: ${card.front} on ${card.deck}`);
 }
 
@@ -44,6 +45,7 @@ export async function updateExistingCard(ankiId:number, file: TFile, vault: Vaul
 
         await removeAnkiIdFromNote(file, vault);
     } else {
+        console.log(`Card updated: ${card.front} on ${card.deck}`);
         new Notice(`Card updated: ${card.front} on ${card.deck}`);
     }  
 }
