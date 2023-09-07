@@ -17,3 +17,9 @@ export interface imagesToSend {
     filename: string,
     path: string,
 }
+
+export interface card {
+	front: string,
+	back: string,
+	deck: string
+}

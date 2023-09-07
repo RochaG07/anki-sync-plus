@@ -1,86 +1,50 @@
 import { TFile, Notice, Vault } from "obsidian";
-import { getInfoFromFile, foundExclusionTags, getDeckFromTags, getImagesFromNote, convertImagesMDToHtml, addAnkiIdToNote, extractYamlFromNote, removeAnkiIdFromNote, appendSVGToExcalidrawFiles } from "./utils";
+import { getInfoFromFile, foundExclusionTags, getDeckFromTags, getImagesFromNote, convertImagesMDToHtml, addAnkiIdToNote, extractYamlFromNote, removeAnkiIdFromNote, appendSVGToExcalidrawFiles, prepareCard } from "./utils";
 import { addCardOnAnki, addDeckOnAnki, addImagesOnAnki, deleteCardOnAnki, updateCardOnAnki } from "./ankiCommunication";
 import { Converter } from "showdown";
-import { AnkiObsidianIntegrationSettings, imagesToSend } from "./interfaces";
+import { AnkiObsidianIntegrationSettings, card, imagesToSend } from "./interfaces";
 import { getBasePath } from "./getBasePath";
 
 
 
 export async function addNewCard( file: TFile, vault: Vault, createdDecks: string[], settings: AnkiObsidianIntegrationSettings){
-    let {noteTitle, noteContent, tags} = await getInfoFromFile(file, settings.ignoreTags, settings.tagsInProps); 
 
-    if(foundExclusionTags(tags, settings.excludeTags)) return;		
-    
-    let deck = settings.defaultDeck;
-    if(tags.length > 0){
-        deck = getDeckFromTags(tags);
+    let card: card;
+
+    try{
+        card = await prepareCard(file, settings, createdDecks, getBasePath(vault))
+    } catch (error) {
+        console.log(error)
+        return;
     }
-
-    if(!createdDecks.includes(deck)){
-        await addDeckOnAnki(deck);
-    }
-
-    if(settings.exclusionRegex){
-        noteContent = noteContent.replace(settings.exclusionRegex, "");
-    }
-
-    if(settings.excalidrawSupportEnabled){
-        noteContent = appendSVGToExcalidrawFiles(noteContent)
-    }
-
-    let images = getImagesFromNote(noteContent, getBasePath(vault), settings.attachmentsFolder, settings.excalidrawFolder);
-
-    if(images.length > 0){
-        await addImagesOnAnki(images);
-        noteContent = convertImagesMDToHtml(noteContent);
-    }
-
-    let htmlConverter = new Converter();
-    let ankiId = await addCardOnAnki(noteTitle, htmlConverter.makeHtml(noteContent), deck);
+        
+    let ankiId = await addCardOnAnki(card);
 
     if(ankiId){
         await addAnkiIdToNote(file, ankiId, vault);
     }
 
-    new Notice(`Card created: ${noteTitle} on ${deck}`);
+    new Notice(`Card created: ${card.front} on ${card.deck}`);
 }
 
-export async function updateExistingCard(ankiId:number, file: TFile, vault: Vault, settings: AnkiObsidianIntegrationSettings){
-    let {noteTitle, noteContent, tags} = await getInfoFromFile(file, settings.ignoreTags, settings.tagsInProps);
+export async function updateExistingCard(ankiId:number, file: TFile, vault: Vault, createdDecks: string[], settings: AnkiObsidianIntegrationSettings){
+    let card: card;
 
-    if(foundExclusionTags(tags, settings.excludeTags)) return;
-
-    let deck = settings.defaultDeck;
-    if(tags.length > 0){
-        deck = getDeckFromTags(tags);
+    try{
+        card = await prepareCard(file, settings, createdDecks, getBasePath(vault))
+    } catch (error) {
+        console.log(error)
+        return;
     }
-
-    if(settings.exclusionRegex){
-        noteContent = noteContent.replace(settings.exclusionRegex, "");
-    }
-
-    if(settings.excalidrawSupportEnabled){
-        noteContent = appendSVGToExcalidrawFiles(noteContent)
-    }
-
-    let images = getImagesFromNote(noteContent, getBasePath(vault), settings.attachmentsFolder, settings.excalidrawFolder);
-
-    if(images.length > 0){
-        await addImagesOnAnki(images);
-        noteContent = convertImagesMDToHtml(noteContent);
-    }
-
-    let htmlConverter = new Converter();
  
-    let error = await updateCardOnAnki(ankiId, noteTitle, htmlConverter.makeHtml(noteContent), deck);
+    let error = await updateCardOnAnki(ankiId, card);
 
     if(error != null){
-        new Notice(`Card ${noteTitle} was deleted on Anki!`)
+        new Notice(`Card ${card.front} was deleted on Anki!`)
 
         await removeAnkiIdFromNote(file, vault);
     } else {
-        new Notice(`Card updated: ${noteTitle} on ${deck}`);
+        new Notice(`Card updated: ${card.front} on ${card.deck}`);
     }  
 }
 

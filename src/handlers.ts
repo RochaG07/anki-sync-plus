@@ -20,6 +20,7 @@ export async function handleScanVault(vault: Vault, settings: AnkiObsidianIntegr
                     ankiId, 
                     files[i],
                     vault,
+                    createdDecks,
                     settings
                 );
             } else {
@@ -49,6 +50,7 @@ export async function handleAddOrUpdateSingleFile(vault: Vault, settings: AnkiOb
                 ankiId, 
                 file,
                 vault,
+                createdDecks,
                 settings
             );
         } else {

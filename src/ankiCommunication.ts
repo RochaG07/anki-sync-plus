@@ -1,7 +1,8 @@
-import { imagesToSend } from "./interfaces";
+import { normalizePath } from "obsidian";
+import { card, imagesToSend } from "./interfaces";
 import { convertImageToBase64 } from "./utils";
 
-export async function addCardOnAnki(front: string, back: string, deck: string): Promise<string | null> {
+export async function addCardOnAnki(card: card): Promise<string | null> {
     const url = "http://localhost:8765/";
 
     const body = JSON.stringify({
@@ -9,11 +10,11 @@ export async function addCardOnAnki(front: string, back: string, deck: string): 
         version: 6,
         params: {
             "note": {
-                "deckName": deck,
+                "deckName": card.deck,
                 "modelName": "Basic",
                 "fields": {
-                    "Front": front,
-                    "Back": back
+                    "Front": card.front,
+                    "Back": card.back
                     }    
                 }
             }
@@ -33,7 +34,7 @@ export async function addCardOnAnki(front: string, back: string, deck: string): 
     return response.result;
 }
 
-export async function updateCardOnAnki(id: number, front: string, back: string, deck: string): Promise<string | null> {
+export async function updateCardOnAnki(id: number, card: card): Promise<string | null> {
     const url = "http://localhost:8765/";
 
     const body = JSON.stringify({
@@ -42,11 +43,11 @@ export async function updateCardOnAnki(id: number, front: string, back: string, 
         params: {
             "note": {
                 "id": id,
-                "deckName": deck,
+                "deckName": card.deck,
                 "modelName": "Basic",
                 "fields": {
-                    "Front": front,
-                    "Back": back
+                    "Front": card.front,
+                    "Back": card.back
                     }    
                 }
             }
@@ -117,7 +118,9 @@ export async function addImagesOnAnki(images: imagesToSend[]): Promise<string | 
     const url = "http://localhost:8765/";
 
     const actions = await Promise.all(images.map(async image => {
-        const data = await convertImageToBase64(image.path);
+        let path = normalizePath(image.path);
+
+        const data = await convertImageToBase64(path);
 
         return {
         "action": "storeMediaFile",

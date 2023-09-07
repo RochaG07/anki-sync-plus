@@ -1,6 +1,9 @@
-import { TFile, Vault } from 'obsidian';
+import { Notice, TFile, TFolder, Vault } from 'obsidian';
 import * as fs from 'fs';
-import { imagesToSend as imageToSend } from './interfaces';
+import { AnkiObsidianIntegrationSettings, card, imagesToSend as imageToSend } from './interfaces';
+import { addDeckOnAnki, addImagesOnAnki } from './ankiCommunication';
+import { getBasePath } from './getBasePath';
+import { Converter } from 'showdown';
 
 export function getCurrentFile(): TFile | null{
     let editor = this.app.workspace.activeEditor;
@@ -8,10 +11,16 @@ export function getCurrentFile(): TFile | null{
     return editor == null ? null : editor?.file
 }
 
-export function getFilesOnFolder(folder: string, vault: Vault) : TFile[]{
-    const files = vault.getMarkdownFiles().filter(file => file.parent?.path == folder);
+export function getFilesOnFolder(path: string, vault: Vault) : TFile[]{
+    let folder = vault.getAbstractFileByPath(path);
 
-    return files;
+    if (folder instanceof TFolder) {
+        let files = folder.children.filter(child => child instanceof TFile);	
+
+        return files as TFile[];	
+    }
+
+    return [];
 }
 
 export async function getAnkiCardIdFromFile(noteContent: string): Promise<number | null>{
@@ -66,11 +75,6 @@ export async function getInfoFromFile(file: TFile, ignoreTags: string[], tagsInP
 
     tags = [...tags,...getTagsFromNoteBody(noteContent)];
 
-    console.log(...getTagsFromProps(noteContent));
-    console.log(...getTagsFromNoteBody(noteContent));
-
-    console.log(tags);
-    
     // Remove YAML(Props) for final card
     noteContent = noteContent.replace(/^---((.|\n)*?)---/g, "");
 
@@ -174,5 +178,48 @@ export async function convertImageToBase64(filePath: string): Promise<string> {
         return base64String;
     } catch (error){
         throw error;
+    }
+}
+
+export async function prepareCard(file:TFile, settings: AnkiObsidianIntegrationSettings, createdDecks: string[], basePath: string): Promise<card> {
+    let {noteTitle, noteContent, tags} = await getInfoFromFile(file, settings.ignoreTags, settings.tagsInProps); 
+
+    if(foundExclusionTags(tags, settings.excludeTags)) throw new Error("Found exclusion tag, skipping card...");		
+    
+    let deck = settings.defaultDeck;
+    if(tags.length > 0){
+        deck = getDeckFromTags(tags);
+    }
+
+    if(!createdDecks.includes(deck)){
+        await addDeckOnAnki(deck);
+    }
+
+    if(settings.exclusionRegex){
+        noteContent = noteContent.replace(settings.exclusionRegex, "");
+    }
+
+    if(settings.excalidrawSupportEnabled){
+        noteContent = appendSVGToExcalidrawFiles(noteContent)
+    }
+
+    let images = getImagesFromNote(noteContent, basePath, settings.attachmentsFolder, settings.excalidrawFolder);
+
+    if(images.length > 0){
+        try{
+            await addImagesOnAnki(images);
+        } catch (error){
+            new Notice(`Unable to load one or more images for "${noteTitle}"`);
+        }
+        
+        noteContent = convertImagesMDToHtml(noteContent);
+    }
+
+    let htmlConverter = new Converter();
+
+    return {
+        front: noteTitle,
+        back: htmlConverter.makeHtml(noteContent),
+        deck
     }
 }

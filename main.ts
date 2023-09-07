@@ -19,12 +19,10 @@ const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
 	tagsInProps: false
 }
 
+
 export default class AnkiObsidianIntegrationPlugin extends Plugin {
 	settings: AnkiObsidianIntegrationSettings;
-	basePath: string;
-
 	createdDecks: string[] = [];
-	excalidrawSupportActive = true;
 	
 	async onload() {
 		await this.loadSettings();
@@ -54,7 +52,6 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 			callback: () => handleDeleteSingleFile(this.app.vault),
 		});
 		this.addRibbonIcon('copy-minus', 'Delete card for  current note on Anki', () => handleDeleteSingleFile(this.app.vault));
-
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new settingTab(this.app, this));
