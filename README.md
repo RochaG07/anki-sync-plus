@@ -1,7 +1,7 @@
 # AnkiSync+
 Unlock the power of seamless integration between [Obsidian](https://obsidian.md/) and [Anki](https://apps.ankiweb.net/) with AnkiSync+, a feature-packed plugin designed to enhance your flashcard creation experience.
 
-![](https://github.com/RochaG07/anki-obsidian-integration/blob/master/media/demo.gif)
+![](https://github.com/RochaG07/anki-sync-plus/blob/master/media/demo.gif)
 
 ## ✨ Key Features
 - 🗃️ *Automated Card Management:* Scan the selected folder effortlessly to add new cards or update existing ones. Keep your knowledge up-to-date with ease.
