@@ -1,7 +1,7 @@
 {
 	"id": "anki-sync-plus",
 	"name": "AnkiSync+",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"minAppVersion": "0.15.0",
 	"description": "Integration between Obsidian and Anki.",
 	"author": "RochaG0",
