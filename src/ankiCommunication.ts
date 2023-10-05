@@ -1,4 +1,4 @@
-import { normalizePath } from "obsidian";
+import { normalizePath, requestUrl } from "obsidian";
 import { card, imagesToSend } from "./interfaces";
 import { convertImageToBase64 } from "./utils";
 
@@ -20,18 +20,14 @@ export async function addCardOnAnki(card: card): Promise<string | null> {
             }
     });
 
-    let response = await fetch(url, {
+
+    let response = await requestUrl({
+        url,
         method: "post",
         body
-    }).then((response) => {
-        return response.json();
-    }).catch((error) => {	
-        console.log(error);
-
-        return null;
     })
 
-    return response.result;
+    return response.json.result;
 }
 
 export async function updateCardOnAnki(id: number, card: card): Promise<string | null> {
@@ -53,17 +49,13 @@ export async function updateCardOnAnki(id: number, card: card): Promise<string |
             }
     });
 
-    let response = await fetch(url, {
+    let response = await requestUrl({
+        url,
         method: "post",
         body
-    }).then((response) => {
-        return response.json();
-    }).catch((error) => {
-        console.log(error);
-        return error;
     })
 
-    return response.error;
+    return response.json.result;
 }
 
 export async function deleteCardOnAnki(id: number): Promise<string | null> {
@@ -77,17 +69,13 @@ export async function deleteCardOnAnki(id: number): Promise<string | null> {
         }
     });
 
-    let response = await fetch(url, {
+    let response = await requestUrl({
+        url,
         method: "post",
         body
-    }).then((response) => {
-        return response.json();
-    }).catch((error) => {
-        console.log(error);
-        return null;
     })
 
-    return response.result;
+    return response.json.result;
 }
 
 export async function addDeckOnAnki(name: string): Promise<string | null>{
@@ -101,17 +89,13 @@ export async function addDeckOnAnki(name: string): Promise<string | null>{
         }
     });
 
-    let response = await fetch(url, {
+    let response = await requestUrl({
+        url,
         method: "post",
         body
-    }).then((response) => {
-        return response.json();
-    }).catch((error) => {
-        console.log(error);
-        return null;
     })
 
-    return response.result;
+    return response.json.result;
 }
 
 export async function addImagesOnAnki(images: imagesToSend[]): Promise<string | null> {
@@ -137,16 +121,11 @@ export async function addImagesOnAnki(images: imagesToSend[]): Promise<string | 
         }
     });
 
-    let response = await fetch(url, {
+    let response = await requestUrl({
+        url,
         method: "post",
         body
-    }).then((response) => {
-        return response.json();
-    }).catch((error) => {	
-        console.log(error);
-
-        return null;
     })
 
-    return response.result;
+    return response.json.result;
 }

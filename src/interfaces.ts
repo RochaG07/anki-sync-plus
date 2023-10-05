@@ -10,7 +10,6 @@ export interface AnkiObsidianIntegrationSettings {
 	excludeTags: string[],
 	excalidrawSupportEnabled: boolean,
 	excalidrawFolder: string,
-	tagsInProps: boolean,
 }
 
 export interface imagesToSend {

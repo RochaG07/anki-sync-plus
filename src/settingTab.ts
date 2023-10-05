@@ -96,18 +96,6 @@ export class settingTab extends PluginSettingTab {
 				}));
 
 			new Setting(containerEl)
-			.setName('Tags in properties')
-			.setDesc('If you activate this setting, it will search for tags within the "tags" field in Props; otherwise, it will only search for tags on the rest of the note')
-			.addToggle(text => text
-				.setValue(this.plugin.settings.tagsInProps)
-				.onChange(async () => {
-					this.plugin.settings.tagsInProps = !this.plugin.settings.tagsInProps;
-
-					await this.plugin.saveSettings();
-					this.display();
-			}));
-			
-			new Setting(containerEl)
 			.setName('Excalidraw support')
 			.setDesc('Toggle support for excalidraw drawings\n. IMPORTANT: For this feature to work, the option to auto-export has to be enabled as an .svg file on the excalidraw plugin settings')
 			.addToggle(text => text

@@ -1,13 +1,12 @@
-import { TFile, Notice, Vault } from "obsidian";
-import { getInfoFromFile, foundExclusionTags, getDeckFromTags, getImagesFromNote, convertImagesMDToHtml, addAnkiIdToNote, extractYamlFromNote, removeAnkiIdFromNote, appendSVGToExcalidrawFiles, prepareCard } from "./utils";
-import { addCardOnAnki, addDeckOnAnki, addImagesOnAnki, deleteCardOnAnki, updateCardOnAnki } from "./ankiCommunication";
-import { Converter } from "showdown";
-import { AnkiObsidianIntegrationSettings, card, imagesToSend } from "./interfaces";
+import { TFile, Notice, Vault, FileManager } from "obsidian";
+import {  addAnkiIdToNote, removeAnkiIdFromNote, prepareCard } from "./utils";
+import { addCardOnAnki, deleteCardOnAnki, updateCardOnAnki } from "./ankiCommunication";
+import { AnkiObsidianIntegrationSettings, card } from "./interfaces";
 import { getBasePath } from "./getBasePath";
 
 
 
-export async function addNewCard( file: TFile, vault: Vault, createdDecks: string[], settings: AnkiObsidianIntegrationSettings){
+export async function addNewCard(file: TFile, vault: Vault, createdDecks: string[], settings: AnkiObsidianIntegrationSettings, fileManager: FileManager){
 
     let card: card;
 
@@ -21,14 +20,13 @@ export async function addNewCard( file: TFile, vault: Vault, createdDecks: strin
     let ankiId = await addCardOnAnki(card);
 
     if(ankiId){
-        await addAnkiIdToNote(file, ankiId, vault);
+        await addAnkiIdToNote(file, ankiId, fileManager);
     }
 
-    console.log(`Card created: ${card.front} on ${card.deck}`);
     new Notice(`Card created: ${card.front} on ${card.deck}`);
 }
 
-export async function updateExistingCard(ankiId:number, file: TFile, vault: Vault, createdDecks: string[], settings: AnkiObsidianIntegrationSettings){
+export async function updateExistingCard(ankiId:number, file: TFile, vault: Vault, createdDecks: string[], settings: AnkiObsidianIntegrationSettings, fileManager: FileManager){
     let card: card;
 
     try{
@@ -43,17 +41,16 @@ export async function updateExistingCard(ankiId:number, file: TFile, vault: Vaul
     if(error != null){
         new Notice(`Card ${card.front} was deleted on Anki!`)
 
-        await removeAnkiIdFromNote(file, vault);
+        await removeAnkiIdFromNote(file, fileManager);
     } else {
-        console.log(`Card updated: ${card.front} on ${card.deck}`);
         new Notice(`Card updated: ${card.front} on ${card.deck}`);
     }  
 }
 
-export async function deleteExistingCard(ankiId:number, file: TFile, vault: Vault){
+export async function deleteExistingCard(ankiId:number, file: TFile, vault: Vault, fileManager: FileManager){
     deleteCardOnAnki(ankiId);
 
-    await removeAnkiIdFromNote(file, vault);
+    await removeAnkiIdFromNote(file, fileManager);
 
     new Notice(`Card deleted`);
 }

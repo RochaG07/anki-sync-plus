@@ -1,6 +1,6 @@
 {
 	"name": "anki-sync-plus",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Unlock the power of seamless integration between Obsidian and Anki with AnkiSync+",
 	"main": "main.js",
 	"scripts": {

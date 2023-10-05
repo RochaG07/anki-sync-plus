@@ -1,8 +1,7 @@
-import { Notice, TFile, TFolder, Vault } from 'obsidian';
+import { FileManager, Notice, TFile, TFolder, Vault, getAllTags } from 'obsidian';
 import * as fs from 'fs';
 import { AnkiObsidianIntegrationSettings, card, imagesToSend as imageToSend } from './interfaces';
 import { addDeckOnAnki, addImagesOnAnki } from './ankiCommunication';
-import { getBasePath } from './getBasePath';
 import { Converter } from 'showdown';
 
 export function getCurrentFile(): TFile | null{
@@ -31,18 +30,9 @@ export async function getAnkiCardIdFromFile(noteContent: string): Promise<number
     return Number(m.match(/\d+/))
 }
 
-export function extractYamlFromNote(note: string): string[]{	
-    let output:string[] = [];
-    let yaml = note.match(/^---((.|\n)*?)---/g)?.toString();
-
-    if(yaml){
-        output = [...yaml.replace(/---\n|\n---/g, "").split("\n")];
-    }
-    
-    return output;
-}
-
 export function getDeckFromTags(tags: string[]): string{
+
+
     let deck = tags[0].slice(1).trim();
     let captalizedLetter = deck.charAt(0).toUpperCase();
     deck = captalizedLetter + deck.slice(1);
@@ -63,23 +53,17 @@ export function foundExclusionTags(tags: string[], excludeTags: string[]) : bool
     return found;
 }
 
-export async function getInfoFromFile(file: TFile, ignoreTags: string[], tagsInProps: boolean) : Promise<{ noteTitle: string; noteContent: string; tags: string[]; }>{
+export async function getInfoFromFile(file: TFile, ignoreTags: string[]) : Promise<{ noteTitle: string; noteContent: string; tags: string[]|null; }>{
     let noteTitle = file.name.substring(0, file.name.length - 3);	
     let noteContent = await this.app.vault.cachedRead(file);
 
-    let tags: string[] = [];
-
-    if(tagsInProps){
-        tags = getTagsFromProps(noteContent)
-    } 
-
-    tags = [...tags,...getTagsFromNoteBody(noteContent)];
+    let tags = getAllTags(this.app.metadataCache.getFileCache(file));
 
     // Remove YAML(Props) for final card
     noteContent = noteContent.replace(/^---((.|\n)*?)---/g, "");
 
     ignoreTags.forEach(ignorableTag => {
-        tags = tags.filter(tag => tag != ignorableTag)
+        if(tags) tags = tags.filter(tag => tag != ignorableTag)
     })
 
     return {
@@ -89,50 +73,15 @@ export async function getInfoFromFile(file: TFile, ignoreTags: string[], tagsInP
     }
 }
 
-function getTagsFromNoteBody(noteContent: string): string[]{
-    let tags = [...noteContent.matchAll(/(?:^|\s)(#[a-zA-Z0-9À-ÿ-]+)/g)].map(tag => tag[0].trim());
-
-    return tags;
-}
-
-function getTagsFromProps(noteContent: string): string[]{
-    let tags = [...noteContent.matchAll(/  - [a-zA-Z0-9À-ÿ-]+/g)].map(tag => tag[0].trim());
-
-    return tags;
-}
-
-export async function addAnkiIdToNote(file: TFile, id: string, vault: Vault){
-    let noteContent = await vault.cachedRead(file);
-    let yamlArr = extractYamlFromNote(noteContent)
-
-    await vault.process(file, (data) => {
-        let noteWithoutYaml = data.replace(/^---((.|\n)*?)---/g, "");
-
-        yamlArr.push("anki-id: " + id);
-
-        let newData = `---\n${yamlArr.join("\n")}\n---${yamlArr.length == 1 ? "\n":""}${noteWithoutYaml}`
-
-        return newData
+export async function addAnkiIdToNote(file: TFile, id: string, fileManager: FileManager){
+    await fileManager.processFrontMatter(file, (frontmatter: any) => {
+        frontmatter["anki-id"] = id;
     })
 }
 
-export async function removeAnkiIdFromNote(file: TFile, vault: Vault){
-    let noteContent = await vault.cachedRead(file)
-
-    await vault.process(file, (data) => {
-        let yamlArr = extractYamlFromNote(noteContent);
-        let noteWithoutYaml = data.replace(/^---((.|\n)*?)---/g, "");
-
-        yamlArr = yamlArr.filter(field => !field.contains("anki-id"));
-
-        let newData
-        if(yamlArr.length >= 1){
-            newData = `---\n${yamlArr.join("\n")}\n---${noteWithoutYaml}`;
-        } else {
-            newData = noteWithoutYaml;
-        }
-
-        return newData;
+export async function removeAnkiIdFromNote(file: TFile, fileManager: FileManager){
+    await fileManager.processFrontMatter(file, (frontmatter: any) => {
+        delete frontmatter["anki-id"];
     })
 }
 
@@ -182,12 +131,12 @@ export async function convertImageToBase64(filePath: string): Promise<string> {
 }
 
 export async function prepareCard(file:TFile, settings: AnkiObsidianIntegrationSettings, createdDecks: string[], basePath: string): Promise<card> {
-    let {noteTitle, noteContent, tags} = await getInfoFromFile(file, settings.ignoreTags, settings.tagsInProps); 
+    let {noteTitle, noteContent, tags} = await getInfoFromFile(file, settings.ignoreTags); 
 
-    if(foundExclusionTags(tags, settings.excludeTags)) throw new Error("Found exclusion tag, skipping card...");		
+    if(tags && foundExclusionTags(tags, settings.excludeTags)) throw new Error("Found exclusion tag, skipping card...");		
     
     let deck = settings.defaultDeck;
-    if(tags.length > 0){
+    if(tags && tags.length > 0){
         deck = getDeckFromTags(tags);
     }
 
