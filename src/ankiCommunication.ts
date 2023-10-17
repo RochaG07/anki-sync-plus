@@ -129,3 +129,35 @@ export async function addImagesOnAnki(images: imagesToSend[]): Promise<string | 
 
     return response.json.result;
 }
+
+export async function browseNoteInAnki(id: number): Promise<string | null> {
+    const url = "http://localhost:8765/";
+
+    // Hack: open anki browser first
+    let body = JSON.stringify({
+        action: "guiDeckBrowser",
+        version: 6,
+    });
+
+    await requestUrl({
+        url,
+        method: "post",
+        body
+    });
+
+    body = JSON.stringify({
+        action: "guiBrowse",
+        version: 6,
+        params: {
+            "query": `nid:${id}`
+        }
+    });
+
+    let response = await requestUrl({
+        url,
+        method: "post",
+        body
+    });
+
+    return response.json.result;
+}

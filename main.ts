@@ -1,6 +1,6 @@
 import { Plugin, getAllTags } from 'obsidian';
 
-import { handleAddOrUpdateSingleFile, handleDeleteSingleFile, handleScanVault } from 'src/handlers';
+import { handleAddOrUpdateSingleFile, handleDeleteSingleFile, handleScanVault, handleBrowseAnkiNoteOfCurrent } from 'src/handlers';
 import { settingTab } from 'src/settingTab';
 import { AnkiObsidianIntegrationSettings } from 'src/interfaces';
 import { getCurrentFile, removeAnkiIdFromNote } from 'src/utils';
@@ -53,6 +53,12 @@ export default class AnkiObsidianIntegrationPlugin extends Plugin {
 		});
 		this.addRibbonIcon('copy-minus', 'Delete card for  current note on Anki', () => handleDeleteSingleFile(this.app.vault, this.app.fileManager));
 
+		this.addCommand({
+			id: "browseSingleNoteInAnkiCommand",
+			name: "Browse current note in Anki",
+			icon: "copy-plus",
+			callback: () => handleBrowseAnkiNoteOfCurrent(this.app.vault),
+		});
 
 		this.addSettingTab(new settingTab(this.app, this));
 	}
