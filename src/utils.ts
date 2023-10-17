@@ -59,8 +59,12 @@ export async function getInfoFromFile(file: TFile, ignoreTags: string[]) : Promi
 
     let tags = getAllTags(this.app.metadataCache.getFileCache(file));
 
+    // Back to obsidian uri
+    const obUrl = "obsidian://open?vault="
+        + encodeURIComponent(this.app.vault.getName())
+        + "&file=" + encodeURIComponent(file.path);
     // Remove YAML(Props) for final card
-    noteContent = noteContent.replace(/^---((.|\n)*?)---/g, "");
+    noteContent = noteContent.replace(/^---((.|\n)*?)---/g, "").concat(`\n\n[🔗${noteTitle}](${obUrl})`);
 
     ignoreTags.forEach(ignorableTag => {
         if(tags) tags = tags.filter(tag => tag != ignorableTag)
