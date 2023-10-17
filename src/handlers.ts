@@ -106,3 +106,25 @@ export async function  handleDeleteSingleFile(vault: Vault, fileManager: FileMan
         isHandlingAction = false;
     }
 }
+
+export async function handleBrowseAnkiNoteOfCurrent(vault: Vault){
+    let file = getCurrentFile();
+    if (!file) return;
+
+    if(isHandlingAction) return;
+    isHandlingAction = true;
+
+    let ankiId = await getAnkiCardIdFromFile(await vault.cachedRead(file));
+
+    try {
+        if(ankiId){
+            await browseNoteInAnki(ankiId);
+        } else {
+            new Notice("No Anki Id found")
+        }
+    } catch (error) {
+        new Notice("Error")
+    } finally {
+        isHandlingAction = false;
+    }
+}
