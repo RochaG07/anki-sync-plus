@@ -3,7 +3,7 @@ import { Plugin, getAllTags } from 'obsidian';
 import { handleAddOrUpdateSingleFile, handleDeleteSingleFile, handleScanVault } from 'src/handlers';
 import { settingTab } from 'src/settingTab';
 import { AnkiObsidianIntegrationSettings } from 'src/interfaces';
-import { getCurrentFile, removeAnkiIdFromNote } from 'src/utils';
+import { getCurrentFile, removeAnkiMetaFromNote } from 'src/utils';
 
 const DEFAULT_SETTINGS: AnkiObsidianIntegrationSettings = {
 	targetFolder: "",

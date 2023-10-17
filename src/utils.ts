@@ -30,6 +30,14 @@ export async function getAnkiCardIdFromFile(noteContent: string): Promise<number
     return Number(m.match(/\d+/))
 }
 
+export async function getAnkiTsFromFile(noteContent: string): Promise<number>{
+    let m = noteContent.match(/anki-ts: \d+/g)?.toString();
+
+    if (!m) return 0;
+
+    return Number(m.match(/\d+/))
+}
+
 export function getDeckFromTags(tags: string[]): string{
 
 
@@ -79,9 +87,16 @@ export async function addAnkiIdToNote(file: TFile, id: string, fileManager: File
     })
 }
 
-export async function removeAnkiIdFromNote(file: TFile, fileManager: FileManager){
+export async function updateAnkiTsToNote(file: TFile, ts: number, fileManager: FileManager){
+    await fileManager.processFrontMatter(file, (frontmatter: any) => {
+        frontmatter["anki-ts"] = ts;
+    }, file.stat) // keep mtime not change
+}
+
+export async function removeAnkiMetaFromNote(file: TFile, fileManager: FileManager){
     await fileManager.processFrontMatter(file, (frontmatter: any) => {
         delete frontmatter["anki-id"];
+        delete frontmatter["anki-ts"];
     })
 }
 
