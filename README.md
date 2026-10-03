@@ -4,7 +4,7 @@ Unlock the power of seamless integration between [Obsidian](https://obsidian.md/
 ![](https://github.com/RochaG07/anki-sync-plus/blob/master/media/demo.gif)
 
 ## ✨ Key Features
-- 🗃️ *Automated Card Management:* Scan the selected folder effortlessly to add new cards or update existing ones. Keep your knowledge up-to-date with ease.
+- 🗃️ *Automated Card Management:* Scan the selected folder effortlessly to add new cards or update existing ones. Keep your knowledge up-to-date with ease. Need more than one folder? List them separated by commas.
 - 📃 *Note-Based Card Actions:* Choose to add, update, or delete individual cards directly from your currently selected note. Tailor your flashcards to your evolving learning needs.
 - 🏷️ *Organize with Tags:* Organize your flashcards into decks using tags as deck names. The first tag found on a note becomes the deck name, streamlining your card organization.
 - ❌ *Tag Exclusion:* Customize deck names by excluding specific tags. Ensure your decks reflect your unique learning preferences.

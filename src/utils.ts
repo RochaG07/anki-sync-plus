@@ -11,15 +11,23 @@ export function getCurrentFile(): TFile | null{
 }
 
 export function getFilesOnFolder(path: string, vault: Vault) : TFile[]{
-    let folder = vault.getAbstractFileByPath(path);
+    const folderPaths = path.split(",").map(folderPath => folderPath.trim()).filter(folderPath => folderPath !== "");
 
-    if (folder instanceof TFolder) {
-        let files = folder.children.filter(child => child instanceof TFile);	
+    const files: TFile[] = [];
 
-        return files as TFile[];	
+    for (const folderPath of folderPaths) {
+        let folder = vault.getAbstractFileByPath(folderPath);
+
+        if (folder instanceof TFolder) {
+            for (const child of folder.children) {
+                if (child instanceof TFile && !files.includes(child)) {
+                    files.push(child);
+                }
+            }
+        }
     }
 
-    return [];
+    return files;
 }
 
 export async function getAnkiCardIdFromFile(noteContent: string): Promise<number | null>{

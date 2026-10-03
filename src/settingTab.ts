@@ -17,10 +17,10 @@ export class settingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 		.setName("Target folder")
-		.setDesc("Select target folder for file scan")
+		.setDesc("Select target folder for file scan. Separate multiple folders with commas")
 		.addText((text) =>
 			text
-			.setPlaceholder("Folder/Sub-folder")
+			.setPlaceholder("Folder/Sub-folder, Another folder")
 			.setValue(this.plugin.settings.targetFolder)
 			.onChange(async (value) => {
 				this.plugin.settings.targetFolder = value;
